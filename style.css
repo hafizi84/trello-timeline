@@ -1,0 +1,892 @@
+/* ==========================================================================
+   Trello Timeline View - Ultra Premium Design System
+   Matches Asana / Trello Premium Timeline View with Pixel Parity
+   ========================================================================== */
+
+:root {
+  --font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Primary & Slate Tokens */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F9FAFB;
+  --bg-sidebar: #FFFFFF;
+  --border-color: #ECEEF1;
+  --border-light: #F3F4F6;
+  --text-main: #1F2937;
+  --text-muted: #6B7280;
+  --text-light: #9CA3AF;
+  
+  /* Brand Blue */
+  --brand-blue: #0079BF;
+  --brand-blue-hover: #026AA7;
+  --today-blue: #0284C7;
+  
+  /* Task Pill Color System (Matches Screenshot Exactly) */
+  --pill-yellow-bg: #FEEFAD;
+  --pill-yellow-text: #855806;
+  --pill-yellow-border: #FCE588;
+  
+  --pill-blue-bg: #BAE0F7;
+  --pill-blue-text: #134E75;
+  --pill-blue-border: #A4D3F3;
+  
+  --pill-purple-bg: #E1D7F5;
+  --pill-purple-text: #533296;
+  --pill-purple-border: #D1C3EE;
+  
+  --pill-green-bg: #BCEDB8;
+  --pill-green-text: #266221;
+  --pill-green-border: #A8E5A1;
+  
+  --pill-milestone-bg: #FDE8E8;
+  --pill-milestone-text: #B91C1C;
+  --pill-milestone-border: #F87171;
+  
+  /* Layout Dimensions */
+  --sidebar-width: 130px;
+  --col-day-width: 140px;
+  --header-height: 58px;
+  --row-height: 84px;
+  --today-line-color: #EF4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.4;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #FFFFFF;
+}
+
+/* ==========================================================================
+   Top Navigation Bar
+   ========================================================================== */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: #FFFFFF;
+  z-index: 40;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.top-left, .top-center, .top-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.trello-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.brand-title {
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.board-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.board-selector-wrap label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.select-dropdown {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #1F2937;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-dropdown:hover {
+  background-color: #F3F4F6;
+  border-color: #D1D5DB;
+}
+
+.select-dropdown:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(0, 121, 191, 0.15);
+}
+
+.group-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.control-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pill-group {
+  display: flex;
+  background-color: #F3F4F6;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.pill-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #4B5563;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pill-btn.active {
+  background-color: #FFFFFF;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Date Navigator */
+.nav-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #F9FAFB;
+  padding: 3px 6px;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4B5563;
+  transition: all 0.15s ease;
+}
+
+.nav-btn:hover {
+  background-color: #E5E7EB;
+  color: #111827;
+}
+
+.today-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #1F2937;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.today-btn:hover {
+  background-color: #E5E7EB;
+}
+
+.date-range-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #111827;
+  padding: 0 8px;
+  letter-spacing: -0.01em;
+}
+
+/* Zoom & Action Buttons */
+.zoom-controls {
+  display: flex;
+  background-color: #F3F4F6;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.zoom-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #4B5563;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zoom-btn.active {
+  background-color: #FFFFFF;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.primary-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #FFFFFF;
+  background-color: var(--brand-blue);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 121, 191, 0.3);
+}
+
+.primary-btn:hover {
+  background-color: var(--brand-blue-hover);
+  transform: translateY(-1px);
+}
+
+.secondary-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  background-color: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.secondary-btn:hover {
+  background-color: #E5E7EB;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background-color: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #065F46;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* ==========================================================================
+   Main Timeline Wrapper
+   ========================================================================== */
+.timeline-wrapper {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - var(--header-height));
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+  background-color: #FFFFFF;
+}
+
+/* Left Sidebar (Milestone & People Columns) */
+.timeline-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
+  border-right: 1px solid var(--border-color);
+  background-color: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.02);
+}
+
+.sidebar-corner-cell {
+  height: 48px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+  background-color: #FAFBFD;
+}
+
+.sidebar-rows-container {
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden; /* Synced with main grid */
+}
+
+/* Sidebar Row Cell (Matches screenshot exact layout: Avatar + Name) */
+.sidebar-row-cell {
+  height: var(--row-height);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 6px;
+  background-color: #FFFFFF;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-row-cell:hover {
+  background-color: #F9FAFB;
+}
+
+.sidebar-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1.5px solid #FFFFFF;
+}
+
+.sidebar-avatar-placeholder {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4B5563;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Milestone Cell (Top row in screenshot) */
+.sidebar-row-cell.is-milestone-row .milestone-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+}
+
+/* ==========================================================================
+   Right Area: Scrollable Grid
+   ========================================================================== */
+.timeline-grid-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background-color: #FFFFFF;
+}
+
+/* Header Row (Day 9, Day 10, Day 11...) */
+.timeline-header-row {
+  display: flex;
+  height: 48px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: #FAFBFD;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.timeline-day-header {
+  width: var(--col-day-width);
+  min-width: var(--col-day-width);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #6B7280;
+  user-select: none;
+}
+
+/* Highlighted current/active day badge (Wed 11 in screenshot) */
+.timeline-day-header.is-today {
+  color: #0284C7;
+  font-weight: 700;
+}
+
+.day-badge-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.timeline-day-header.is-today .day-badge-pill {
+  background-color: #0284C7;
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.4);
+}
+
+/* Vertical "Today" or Milestone Red Line */
+.today-marker-line {
+  position: absolute;
+  top: 48px;
+  bottom: 0;
+  width: 1.5px;
+  background-color: var(--today-line-color);
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* SVG Dependency Overlay */
+.dependency-svg-layer {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 48px);
+  pointer-events: none;
+  z-index: 12;
+}
+
+.dependency-curve {
+  fill: none;
+  stroke: #D1D5DB;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: stroke 0.2s ease;
+}
+
+.dependency-curve:hover {
+  stroke: #6B7280;
+  stroke-width: 3;
+}
+
+/* Grid Body Rows */
+.timeline-grid-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-grid-row {
+  height: var(--row-height);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  display: flex;
+}
+
+/* Background Day Columns */
+.grid-col-cell {
+  width: var(--col-day-width);
+  min-width: var(--col-day-width);
+  height: 100%;
+  border-right: 1px solid var(--border-color);
+  background-color: #FFFFFF;
+  transition: background-color 0.15s ease;
+}
+
+.grid-col-cell:hover {
+  background-color: #FAFAFC;
+}
+
+.grid-col-cell.is-today-col {
+  background-color: #F0F9FF20;
+}
+
+/* ==========================================================================
+   Task Bars / Pills (Exact Screenshot Recreation)
+   ========================================================================== */
+.task-pill {
+  position: absolute;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  z-index: 10;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.task-pill:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  z-index: 18;
+}
+
+/* Task Pill Colors */
+.task-pill.color-yellow {
+  background-color: var(--pill-yellow-bg);
+  color: var(--pill-yellow-text);
+  border: 1px solid var(--pill-yellow-border);
+}
+
+.task-pill.color-blue {
+  background-color: var(--pill-blue-bg);
+  color: var(--pill-blue-text);
+  border: 1px solid var(--pill-blue-border);
+}
+
+.task-pill.color-purple {
+  background-color: var(--pill-purple-bg);
+  color: var(--pill-purple-text);
+  border: 1px solid var(--pill-purple-border);
+}
+
+.task-pill.color-green {
+  background-color: var(--pill-green-bg);
+  color: var(--pill-green-text);
+  border: 1px solid var(--pill-green-border);
+}
+
+/* Milestone Box (e.g. Product Demo on Friday) */
+.task-pill.color-milestone {
+  background-color: var(--pill-milestone-bg);
+  color: var(--pill-milestone-text);
+  border: 1px solid var(--pill-milestone-border);
+  border-radius: 6px;
+  height: 38px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+/* Checkmark badge inside task (like 'Mobile app prototype' in screenshot) */
+.task-pill-icon {
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-check-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #D97706;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+/* Stacking Sub-Tracks inside a single row */
+.task-pill.track-0 {
+  top: 8px;
+}
+
+.task-pill.track-1 {
+  top: 44px;
+}
+
+/* ==========================================================================
+   Bottom Drawer: Unscheduled Cards
+   ========================================================================== */
+.unscheduled-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  background-color: #FFFFFF;
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  display: none;
+  flex-direction: column;
+  transition: transform 0.25s ease;
+}
+
+.unscheduled-drawer.open {
+  display: flex;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-light);
+  background-color: #FAFBFD;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-title h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.drawer-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.drawer-cards-list {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  overflow-x: auto;
+}
+
+.unscheduled-card-item {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 200px;
+  max-width: 240px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.unscheduled-card-item:hover {
+  border-color: var(--brand-blue);
+  box-shadow: 0 3px 8px rgba(0, 121, 191, 0.15);
+  transform: translateY(-2px);
+}
+
+.unscheduled-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unscheduled-card-list {
+  font-size: 0.75rem;
+  color: #6B7280;
+  display: inline-block;
+  background-color: #F3F4F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   Edit Card Modal Dialog
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-content {
+  background-color: #FFFFFF;
+  border-radius: 14px;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  border: 1px solid #E5E7EB;
+  animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  background-color: #FAFBFD;
+}
+
+.modal-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #9CA3AF;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #4B5563;
+}
+
+.modal-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group input, .form-group select {
+  padding: 9px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(0, 121, 191, 0.15);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.modal-actions-right {
+  display: flex;
+  gap: 10px;
+}
+
+.danger-btn {
+  background: transparent;
+  border: 1px solid #FCA5A5;
+  color: #DC2626;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.danger-btn:hover {
+  background-color: #FEE2E2;
+}

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trello Timeline View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation & Control Bar -->
+    <header class="top-bar">
+      <div class="top-left">
+        <div class="brand">
+          <svg class="trello-icon" viewBox="0 0 24 24" fill="currentColor">
+            <rect width="24" height="24" rx="4.5" fill="#0079BF"/>
+            <rect x="4" y="4" width="6.5" height="13.5" rx="1.5" fill="#FFFFFF"/>
+            <rect x="13.5" y="4" width="6.5" height="8.5" rx="1.5" fill="#FFFFFF"/>
+          </svg>
+          <span class="brand-title">Timeline</span>
+        </div>
+
+        <div class="board-selector-wrap">
+          <label for="boardSelect">Board:</label>
+          <select id="boardSelect" class="select-dropdown">
+            <option value="demo">✨ Screenshot Demo (Molly, Diana, Brandon...)</option>
+            <option value="loading" disabled>Loading your Trello boards...</option>
+          </select>
+        </div>
+
+        <div class="group-toggle-wrap">
+          <span class="control-label">Group by:</span>
+          <div class="pill-group" id="groupByPills">
+            <button class="pill-btn active" data-group="member">Assignee</button>
+            <button class="pill-btn" data-group="list">Trello List</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-center">
+        <div class="nav-date-controls">
+          <button id="prevBtn" class="nav-btn" title="Previous period">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <button id="todayBtn" class="today-btn">Today</button>
+          <button id="nextBtn" class="nav-btn" title="Next period">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+          <span id="currentDateRange" class="date-range-label">October 2026</span>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <div class="zoom-controls">
+          <button class="zoom-btn active" data-zoom="days">Days</button>
+          <button class="zoom-btn" data-zoom="weeks">Weeks</button>
+        </div>
+
+        <button id="openUnscheduledBtn" class="secondary-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <span>Unscheduled (<span id="unscheduledCount">0</span>)</span>
+        </button>
+
+        <button id="addTaskBtn" class="primary-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>New Task</span>
+        </button>
+
+        <div class="sync-status" id="syncStatus" title="Trello API Connected">
+          <span class="status-dot"></span>
+          <span class="status-text">Connected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Timeline Area -->
+    <main class="timeline-wrapper" id="timelineWrapper">
+      <!-- Left Column: Row Headers (Milestone, Members/Lists) -->
+      <aside class="timeline-sidebar" id="timelineSidebar">
+        <div class="sidebar-corner-cell">
+          <span>People & Roles</span>
+        </div>
+        <div class="sidebar-rows-container" id="sidebarRows">
+          <!-- Dynamically populated rows (Milestone row, Molly, Diana, Brandon, Mark, Ray...) -->
+        </div>
+      </aside>
+
+      <!-- Right Area: Scrollable Timeline Grid -->
+      <section class="timeline-grid-container" id="timelineScrollContainer">
+        <!-- Date Header Row (Mon 9, Tue 10, Wed 11...) -->
+        <div class="timeline-header-row" id="timelineHeaderRow">
+          <!-- Dynamically rendered day column headers -->
+        </div>
+
+        <!-- The Canvas / SVG for Dependency Lines -->
+        <svg class="dependency-svg-layer" id="dependencySvgLayer"></svg>
+
+        <!-- Vertical "Today" Marker Line -->
+        <div class="today-marker-line" id="todayMarkerLine"></div>
+
+        <!-- Grid Body with Horizontal Rows and Vertical Day Columns -->
+        <div class="timeline-grid-body" id="timelineGridBody">
+          <!-- Dynamically rendered task rows and cells -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Drawer: Unscheduled Trello Cards (Drag onto timeline) -->
+    <div class="unscheduled-drawer" id="unscheduledDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <h3>Unscheduled Cards</h3>
+          <span class="drawer-subtitle">Cards without start/due dates. Click or drag to add to timeline.</span>
+        </div>
+        <button id="closeDrawerBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="drawer-cards-list" id="unscheduledCardsList">
+        <!-- Cards loaded here -->
+      </div>
+    </div>
+
+    <!-- Edit Task / Add Task Modal -->
+    <div class="modal-overlay" id="taskModalOverlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Edit Task Details</h3>
+          <button id="closeModalBtn" class="close-btn">&times;</button>
+        </div>
+        <form id="taskForm" class="modal-form">
+          <input type="hidden" id="editCardId">
+          
+          <div class="form-group">
+            <label for="taskName">Task Name</label>
+            <input type="text" id="taskName" required placeholder="e.g. Website design">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskStartDate">Start Date</label>
+              <input type="date" id="taskStartDate" required>
+            </div>
+            <div class="form-group">
+              <label for="taskDueDate">Due Date</label>
+              <input type="date" id="taskDueDate" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskAssignee">Assignee</label>
+              <select id="taskAssignee" class="select-dropdown">
+                <!-- Members populated here -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="taskColor">Theme / Color</label>
+              <select id="taskColor" class="select-dropdown">
+                <option value="yellow">💛 Warm Yellow (Design)</option>
+                <option value="blue">💙 Pastel Blue (Workshops/User)</option>
+                <option value="purple">💜 Soft Purple (Features/Backend)</option>
+                <option value="green">💚 Mint Green (Pages/Testing)</option>
+                <option value="milestone">🚩 Red (Milestone)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" id="trelloListGroup">
+            <label for="taskListSelect">Trello List</label>
+            <select id="taskListSelect" class="select-dropdown">
+              <!-- Lists populated here -->
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="deleteTaskBtn" class="danger-btn">Delete from Timeline</button>
+            <div class="modal-actions-right">
+              <button type="button" id="cancelModalBtn" class="secondary-btn">Cancel</button>
+              <button type="submit" id="saveTaskBtn" class="primary-btn">Save & Sync to Trello</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

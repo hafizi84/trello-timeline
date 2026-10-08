@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Trello Timeline Connector</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <script>
+    window.TrelloPowerUp.initialize({
+      'board-buttons': function(t, options) {
+        return [{
+          icon: {
+            dark: 'https://raw.githubusercontent.com/tabler/tabler-icons/master/icons/outline/chart-bar.svg',
+            light: 'https://raw.githubusercontent.com/tabler/tabler-icons/master/icons/outline/chart-bar.svg'
+          },
+          text: 'Timeline',
+          callback: function(t) {
+            return t.modal({
+              url: './index.html',
+              title: 'Timeline View',
+              fullscreen: true
+            });
+          }
+        }];
+      }
+    });
+  </script>
+</body>
+</html>
