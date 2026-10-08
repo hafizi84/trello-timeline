@@ -26,16 +26,15 @@
         <div class="board-selector-wrap">
           <label for="boardSelect">Board:</label>
           <select id="boardSelect" class="select-dropdown">
-            <option value="demo">✨ Screenshot Demo (Molly, Diana, Brandon...)</option>
-            <option value="loading" disabled>Loading your Trello boards...</option>
+            <option value="" disabled selected>Loading your Trello board...</option>
           </select>
         </div>
 
         <div class="group-toggle-wrap">
           <span class="control-label">Group by:</span>
           <div class="pill-group" id="groupByPills">
-            <button class="pill-btn active" data-group="member">Assignee</button>
-            <button class="pill-btn" data-group="list">Trello List</button>
+            <button class="pill-btn active" data-group="list">Trello List</button>
+            <button class="pill-btn" data-group="member">Assignee</button>
           </div>
         </div>
       </div>
@@ -78,19 +77,19 @@
 
     <!-- Main Timeline Area -->
     <main class="timeline-wrapper" id="timelineWrapper">
-      <!-- Left Column: Row Headers (Milestone, Members/Lists) -->
+      <!-- Left Column: Row Headers (Milestone, Lists / Members) -->
       <aside class="timeline-sidebar" id="timelineSidebar">
         <div class="sidebar-corner-cell">
-          <span>People & Roles</span>
+          <span id="sidebarHeaderTitle">Lists & Status</span>
         </div>
         <div class="sidebar-rows-container" id="sidebarRows">
-          <!-- Dynamically populated rows (Milestone row, Molly, Diana, Brandon, Mark, Ray...) -->
+          <!-- Dynamically populated rows -->
         </div>
       </aside>
 
       <!-- Right Area: Scrollable Timeline Grid -->
       <section class="timeline-grid-container" id="timelineScrollContainer">
-        <!-- Date Header Row (Mon 9, Tue 10, Wed 11...) -->
+        <!-- Date Header Row (Mon 5, Tue 6, Wed 7, Thu 8...) -->
         <div class="timeline-header-row" id="timelineHeaderRow">
           <!-- Dynamically rendered day column headers -->
         </div>
@@ -114,7 +113,7 @@
         <div class="drawer-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <h3>Unscheduled Cards</h3>
-          <span class="drawer-subtitle">Cards without start/due dates. Click or drag to add to timeline.</span>
+          <span class="drawer-subtitle">Cards without dates. Click any card to schedule for Today / This Week!</span>
         </div>
         <button id="closeDrawerBtn" class="close-btn">&times;</button>
       </div>
@@ -151,28 +150,21 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="taskAssignee">Assignee</label>
+              <label for="taskAssignee">Row / Target</label>
               <select id="taskAssignee" class="select-dropdown">
-                <!-- Members populated here -->
+                <!-- Rows populated here -->
               </select>
             </div>
             <div class="form-group">
               <label for="taskColor">Theme / Color</label>
               <select id="taskColor" class="select-dropdown">
-                <option value="yellow">💛 Warm Yellow (Design)</option>
-                <option value="blue">💙 Pastel Blue (Workshops/User)</option>
-                <option value="purple">💜 Soft Purple (Features/Backend)</option>
-                <option value="green">💚 Mint Green (Pages/Testing)</option>
+                <option value="yellow">💛 Warm Yellow</option>
+                <option value="blue">💙 Pastel Blue</option>
+                <option value="purple">💜 Soft Purple</option>
+                <option value="green">💚 Mint Green</option>
                 <option value="milestone">🚩 Red (Milestone)</option>
               </select>
             </div>
-          </div>
-
-          <div class="form-group" id="trelloListGroup">
-            <label for="taskListSelect">Trello List</label>
-            <select id="taskListSelect" class="select-dropdown">
-              <!-- Lists populated here -->
-            </select>
           </div>
 
           <div class="modal-actions">

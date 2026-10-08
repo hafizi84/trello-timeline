@@ -16,10 +16,12 @@
           },
           text: 'Timeline',
           callback: function(t) {
-            return t.modal({
-              url: './index.html',
-              title: 'Timeline View',
-              fullscreen: true
+            return t.board('id', 'name').then(function(board) {
+              return t.modal({
+                url: './index.html?boardId=' + encodeURIComponent(board.id),
+                title: 'Timeline View - ' + board.name,
+                fullscreen: true
+              });
             });
           }
         }];
