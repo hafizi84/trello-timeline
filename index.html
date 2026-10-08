@@ -33,7 +33,8 @@
         <div class="group-toggle-wrap">
           <span class="control-label">Group by:</span>
           <div class="pill-group" id="groupByPills">
-            <button class="pill-btn active" data-group="list">Trello List</button>
+            <button class="pill-btn active" data-group="label">Label</button>
+            <button class="pill-btn" data-group="list">Trello List</button>
             <button class="pill-btn" data-group="member">Assignee</button>
           </div>
         </div>
@@ -80,7 +81,7 @@
       <!-- Left Column: Row Headers (Milestone, Lists / Members) -->
       <aside class="timeline-sidebar" id="timelineSidebar">
         <div class="sidebar-corner-cell">
-          <span id="sidebarHeaderTitle">Lists & Status</span>
+          <span id="sidebarHeaderTitle">Labels</span>
         </div>
         <div class="sidebar-rows-container" id="sidebarRows">
           <!-- Dynamically populated rows -->
@@ -160,8 +161,12 @@
               <select id="taskColor" class="select-dropdown">
                 <option value="yellow">💛 Warm Yellow</option>
                 <option value="blue">💙 Pastel Blue</option>
+                <option value="orange">🧡 Bright Orange</option>
                 <option value="purple">💜 Soft Purple</option>
                 <option value="green">💚 Mint Green</option>
+                <option value="sky">🩵 Sky Blue</option>
+                <option value="pink">🩷 Rose Pink</option>
+                <option value="lime">🍏 Fresh Lime</option>
                 <option value="milestone">🚩 Red (Milestone)</option>
               </select>
             </div>

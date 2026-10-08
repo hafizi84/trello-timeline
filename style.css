@@ -43,7 +43,7 @@
   --pill-milestone-border: #F87171;
   
   /* Layout Dimensions */
-  --sidebar-width: 130px;
+  --sidebar-width: 140px;
   --col-day-width: 140px;
   --header-height: 58px;
   --row-height: 84px;
@@ -425,6 +425,38 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.sidebar-label-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.sidebar-label-tag svg {
+  width: 18px;
+  height: 18px;
+  color: #FFFFFF;
+}
+
+.sidebar-row-cell.is-label-row .sidebar-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #374151;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+}
+
 .sidebar-name {
   font-size: 0.82rem;
   font-weight: 600;
@@ -625,6 +657,42 @@ body {
   background-color: var(--pill-green-bg);
   color: var(--pill-green-text);
   border: 1px solid var(--pill-green-border);
+}
+
+.task-pill.color-orange {
+  background-color: #FED7AA;
+  color: #9A3412;
+  border: 1px solid #FDBA74;
+}
+
+.task-pill.color-pink {
+  background-color: #FCE7F3;
+  color: #9D174D;
+  border: 1px solid #FBCFE8;
+}
+
+.task-pill.color-sky {
+  background-color: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.task-pill.color-lime {
+  background-color: #ECFCCB;
+  color: #3F6212;
+  border: 1px solid #D9F99D;
+}
+
+.task-pill.color-red {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+}
+
+.task-pill.color-gray {
+  background-color: #F3F4F6;
+  color: #374151;
+  border: 1px solid #E5E7EB;
 }
 
 /* Milestone Box (e.g. Product Demo on Friday) */

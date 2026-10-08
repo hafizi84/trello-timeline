@@ -15,7 +15,7 @@ const DEFAULT_BOARD_ID = "628595a5a6a64558821ec0dd";
 // Global State
 const urlParams = new URLSearchParams(window.location.search);
 let currentBoardId = urlParams.get("boardId") || DEFAULT_BOARD_ID;
-let currentViewMode = "list"; // Default to 'list' (shows actual active Trello workflow lists)
+let currentViewMode = "label"; // Default to 'label' as requested
 let zoomMode = "days"; // 'days' | 'weeks'
 let totalVisibleDays = 9;
 
@@ -37,6 +37,58 @@ function formatLocalDate(d) {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Map Trello color names to Task Pill CSS color variants
+function mapTrelloColorToPillColor(colorName) {
+  if (!colorName) return "yellow";
+  const c = colorName.toLowerCase();
+  if (c.includes("blue_light") || c.includes("sky")) return "sky";
+  if (c.includes("blue")) return "blue";
+  if (c.includes("orange")) return "orange";
+  if (c.includes("lime")) return "lime";
+  if (c.includes("green")) return "green";
+  if (c.includes("purple")) return "purple";
+  if (c.includes("pink")) return "pink";
+  if (c.includes("red")) return "red";
+  if (c.includes("yellow")) return "yellow";
+  if (c.includes("black")) return "gray";
+  return "yellow";
+}
+
+// Get official Trello label hex color for the sidebar tag badge
+function getLabelHexColor(colorName) {
+  const map = {
+    blue_light: "#388BFF",
+    blue: "#0052CC",
+    blue_dark: "#09326C",
+    green_light: "#4BCE97",
+    green: "#1F845A",
+    green_dark: "#216E4E",
+    yellow_light: "#F5CD47",
+    yellow: "#E2B203",
+    yellow_dark: "#CF9F02",
+    orange_light: "#FEC57B",
+    orange: "#FAA53D",
+    orange_dark: "#E56910",
+    red_light: "#F87168",
+    red: "#CA3521",
+    red_dark: "#AE2E24",
+    purple_light: "#9F8FEF",
+    purple: "#6E5DC6",
+    purple_dark: "#5E4DB2",
+    pink_light: "#FDD0EC",
+    pink: "#E774BB",
+    pink_dark: "#DA62AC",
+    sky_light: "#6CC3E0",
+    sky: "#22A0C9",
+    sky_dark: "#206B83",
+    lime_light: "#94C748",
+    lime: "#6A9B26",
+    lime_dark: "#4F761A",
+    black: "#44546F"
+  };
+  return map[colorName] || "#0079BF";
 }
 
 // ==========================================================================
@@ -90,45 +142,11 @@ async function fetchBoardData(boardId) {
     const lists = await listsRes.json();
     const members = await membersRes.json();
 
-    // Setup Rows
-    const sidebarTitle = document.getElementById("sidebarHeaderTitle");
-    if (currentViewMode === "list") {
-      sidebarTitle.textContent = "Lists & Status";
-      activeRows = [
-        { id: "milestone", name: "Milestone", isMilestone: true },
-        ...lists.map(l => ({ id: l.id, name: l.name, isList: true }))
-      ];
-    } else {
-      sidebarTitle.textContent = "People & Assignees";
-      activeRows = [
-        { id: "milestone", name: "Milestone", isMilestone: true },
-        ...members.map(m => ({
-          id: m.id,
-          name: m.fullName || m.username,
-          avatar: m.avatarUrl ? `${m.avatarUrl}/170.png` : null
-        }))
-      ];
-      if (members.length === 0) {
-        activeRows.push({ id: "unassigned", name: "Unassigned", avatar: null });
-      }
-    }
-
-    // Process Cards
+    // Separate Cards into Scheduled vs Unscheduled
     activeTasks = [];
     unscheduledTasks = [];
     dependencies = [];
-
-    // Helper color chooser by list name or index
-    function pickColor(listName, index) {
-      if (!listName) return "yellow";
-      const ln = listName.toLowerCase();
-      if (ln.includes("incoming") || ln.includes("start") || ln.includes("todo") || ln.includes("to do")) return "yellow";
-      if (ln.includes("progress") || ln.includes("work")) return "blue";
-      if (ln.includes("approval") || ln.includes("review") || ln.includes("pending")) return "purple";
-      if (ln.includes("completed") || ln.includes("live") || ln.includes("done")) return "green";
-      const palette = ["yellow", "blue", "purple", "green"];
-      return palette[index % palette.length];
-    }
+    const scheduledCards = [];
 
     cards.forEach((card, idx) => {
       const listObj = lists.find(l => l.id === card.idList);
@@ -150,29 +168,177 @@ async function fetchBoardData(boardId) {
           dDate = sDate;
         }
 
-        const rowId = currentViewMode === "list"
-          ? card.idList
-          : (card.idMembers && card.idMembers[0] ? card.idMembers[0] : (activeRows[1] ? activeRows[1].id : "unassigned"));
-
-        activeTasks.push({
-          id: card.id,
-          name: card.name,
-          rowId: rowId,
-          startDate: sDate,
-          dueDate: dDate,
-          color: pickColor(listName, idx),
-          track: 0,
-          listId: card.idList
+        scheduledCards.push({
+          card,
+          sDate,
+          dDate,
+          listName,
+          idx
         });
       } else {
         unscheduledTasks.push({
           id: card.id,
           name: card.name,
           list: listName || "To Do",
-          listId: card.idList
+          listId: card.idList,
+          labels: card.labels || []
         });
       }
     });
+
+    // Helper color chooser by list name or index
+    function pickColor(listName, index) {
+      if (!listName) return "yellow";
+      const ln = listName.toLowerCase();
+      if (ln.includes("incoming") || ln.includes("start") || ln.includes("todo") || ln.includes("to do")) return "yellow";
+      if (ln.includes("progress") || ln.includes("work")) return "blue";
+      if (ln.includes("approval") || ln.includes("review") || ln.includes("pending")) return "purple";
+      if (ln.includes("completed") || ln.includes("live") || ln.includes("done")) return "green";
+      const palette = ["yellow", "blue", "purple", "green", "orange", "sky"];
+      return palette[index % palette.length];
+    }
+
+    const sidebarTitle = document.getElementById("sidebarHeaderTitle");
+
+    // SETUP ROWS BASED ON GROUPING MODE
+    if (currentViewMode === "label") {
+      sidebarTitle.textContent = "Labels";
+      const labelMap = new Map();
+
+      // ONLY labels that have at least one scheduled task under them are added!
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+        let labelId, labelName, labelColor;
+
+        if (card.labels && card.labels.length > 0) {
+          // Use primary label (first label on the card)
+          const primary = card.labels[0];
+          labelId = primary.id;
+          labelName = primary.name && primary.name.trim() !== ""
+            ? primary.name.trim()
+            : (primary.color ? primary.color.charAt(0).toUpperCase() + primary.color.slice(1) + " Label" : "Label");
+          labelColor = primary.color || "blue_light";
+        } else {
+          // Card has no labels attached
+          labelId = "no_label";
+          labelName = "General / No Label";
+          labelColor = "blue_light";
+        }
+
+        if (!labelMap.has(labelId)) {
+          labelMap.set(labelId, {
+            id: labelId,
+            name: labelName,
+            color: labelColor,
+            isLabel: true,
+            taskCount: 0
+          });
+        }
+        labelMap.get(labelId).taskCount++;
+
+        activeTasks.push({
+          id: card.id,
+          name: card.name,
+          rowId: labelId,
+          startDate: sDate,
+          dueDate: dDate,
+          color: mapTrelloColorToPillColor(labelColor),
+          track: 0,
+          listId: card.idList,
+          labelId: labelId,
+          labels: card.labels || []
+        });
+      });
+
+      // Sort labels alphabetically, keep "no_label" at the bottom
+      activeRows = Array.from(labelMap.values()).sort((a, b) => {
+        if (a.id === "no_label") return 1;
+        if (b.id === "no_label") return -1;
+        return a.name.localeCompare(b.name);
+      });
+
+      if (activeRows.length === 0) {
+        activeRows = [
+          { id: "empty_info", name: "No Scheduled Tasks", isLabel: true, color: "blue_light" }
+        ];
+      }
+    } else if (currentViewMode === "list") {
+      sidebarTitle.textContent = "Lists & Status";
+      const listMap = new Map();
+
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+        const lId = card.idList;
+        const listObj = lists.find(l => l.id === lId);
+        const lName = listObj ? listObj.name : "List";
+
+        if (!listMap.has(lId)) {
+          listMap.set(lId, {
+            id: lId,
+            name: lName,
+            isList: true,
+            taskCount: 0
+          });
+        }
+        listMap.get(lId).taskCount++;
+
+        activeTasks.push({
+          id: card.id,
+          name: card.name,
+          rowId: lId,
+          startDate: sDate,
+          dueDate: dDate,
+          color: pickColor(listName, idx),
+          track: 0,
+          listId: card.idList,
+          labels: card.labels || []
+        });
+      });
+
+      // Filter lists to only those with scheduled tasks
+      activeRows = lists
+        .filter(l => listMap.has(l.id))
+        .map(l => listMap.get(l.id));
+
+      if (activeRows.length === 0) {
+        activeRows = lists.map(l => ({ id: l.id, name: l.name, isList: true }));
+      }
+    } else {
+      sidebarTitle.textContent = "People & Assignees";
+      const memberMap = new Map();
+
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+        const memId = (card.idMembers && card.idMembers[0]) ? card.idMembers[0] : "unassigned";
+        const memObj = members.find(m => m.id === memId);
+        const memName = memObj ? (memObj.fullName || memObj.username) : "Unassigned";
+        const avatar = (memObj && memObj.avatarUrl) ? `${memObj.avatarUrl}/170.png` : null;
+
+        if (!memberMap.has(memId)) {
+          memberMap.set(memId, {
+            id: memId,
+            name: memName,
+            avatar: avatar,
+            taskCount: 0
+          });
+        }
+        memberMap.get(memId).taskCount++;
+
+        activeTasks.push({
+          id: card.id,
+          name: card.name,
+          rowId: memId,
+          startDate: sDate,
+          dueDate: dDate,
+          color: pickColor(listName, idx),
+          track: 0,
+          listId: card.idList,
+          labels: card.labels || []
+        });
+      });
+
+      activeRows = Array.from(memberMap.values());
+      if (activeRows.length === 0) {
+        activeRows.push({ id: "unassigned", name: "Unassigned", avatar: null });
+      }
+    }
 
     computeTaskTracks();
 
@@ -247,7 +413,7 @@ function renderTimeline() {
   // 3. Render Left Sidebar Rows
   activeRows.forEach(row => {
     const rowEl = document.createElement("div");
-    rowEl.className = `sidebar-row-cell ${row.isMilestone ? "is-milestone-row" : ""}`;
+    rowEl.className = `sidebar-row-cell ${row.isLabel ? "is-label-row" : ""} ${row.isMilestone ? "is-milestone-row" : ""}`;
 
     if (row.isMilestone) {
       rowEl.innerHTML = `
@@ -255,6 +421,17 @@ function renderTimeline() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
         </div>
         <span class="sidebar-name">${row.name}</span>
+      `;
+    } else if (row.isLabel) {
+      const hexColor = getLabelHexColor(row.color);
+      rowEl.innerHTML = `
+        <div class="sidebar-label-tag" style="background-color: ${hexColor}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+        </div>
+        <span class="sidebar-name" title="${row.name}">${row.name}</span>
       `;
     } else if (row.avatar) {
       rowEl.innerHTML = `
@@ -431,12 +608,21 @@ function renderUnscheduledDrawer() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 2);
 
+      let targetRowId = activeRows[0] ? activeRows[0].id : "";
+      if (currentViewMode === "label" && task.labels && task.labels.length > 0) {
+        const matchRow = activeRows.find(r => r.id === task.labels[0].id);
+        if (matchRow) targetRowId = matchRow.id;
+      } else if (currentViewMode === "list" && task.listId) {
+        const matchRow = activeRows.find(r => r.id === task.listId);
+        if (matchRow) targetRowId = matchRow.id;
+      }
+
       openEditModal({
         id: task.id,
         name: task.name,
         startDate: formatLocalDate(today),
         dueDate: formatLocalDate(tomorrow),
-        rowId: currentViewMode === "list" ? task.listId : (activeRows[1] ? activeRows[1].id : "unassigned"),
+        rowId: targetRowId,
         color: "yellow",
         isNewScheduled: true
       });
@@ -463,7 +649,7 @@ function openEditModal(task) {
 
   assigneeSelect.innerHTML = "";
   activeRows.forEach(r => {
-    if (r.id === "milestone") return;
+    if (r.id === "milestone" || r.id === "empty_info") return;
     const opt = document.createElement("option");
     opt.value = r.id;
     opt.textContent = r.name;
@@ -587,6 +773,25 @@ function bindUIEvents() {
     renderTimeline();
     closeEditModal();
   });
+
+  const addTaskBtn = document.getElementById("addTaskBtn");
+  if (addTaskBtn) {
+    addTaskBtn.addEventListener("click", () => {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 2);
+
+      openEditModal({
+        id: `custom_${Date.now()}`,
+        name: "New Task",
+        startDate: formatLocalDate(today),
+        dueDate: formatLocalDate(tomorrow),
+        rowId: activeRows[0] ? activeRows[0].id : "",
+        color: "yellow",
+        isNewScheduled: true
+      });
+    });
+  }
 
   document.getElementById("timelineScrollContainer").addEventListener("scroll", drawDependencyCurves);
   window.addEventListener("resize", drawDependencyCurves);
