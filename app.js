@@ -25,6 +25,7 @@ let activeTasks = [];
 let activeRows = [];
 let unscheduledTasks = [];
 let dependencies = [];
+let currentBoardLists = []; // Holds active board lists for list movement
 let rowNavIndexes = {}; // Tracks focused task index per row for double-click cycling
 
 function getCenteredDate(baseDate, offsetDays) {
@@ -134,7 +135,7 @@ async function fetchBoardData(boardId) {
   try {
     // Fetch Cards, Lists, and Members
     const [cardsRes, listsRes, membersRes] = await Promise.all([
-      fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,due,start,idMembers,idList,labels,id`),
+      fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,due,start,idMembers,idList,labels,id,dueComplete`),
       fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
       fetch(`https://api.trello.com/1/boards/${boardId}/members?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
     ]);
@@ -142,6 +143,7 @@ async function fetchBoardData(boardId) {
     const cards = await cardsRes.json();
     const lists = await listsRes.json();
     const members = await membersRes.json();
+    currentBoardLists = lists; // Store lists globally for completed task routing
 
     // Separate Cards into Scheduled vs Unscheduled
     activeTasks = [];
@@ -246,8 +248,10 @@ async function fetchBoardData(boardId) {
           color: mapTrelloColorToPillColor(labelColor),
           track: 0,
           listId: card.idList,
+          listName: listName,
           labelId: labelId,
-          labels: card.labels || []
+          labels: card.labels || [],
+          isCompleted: Boolean(card.dueComplete)
         });
       });
 
@@ -291,7 +295,9 @@ async function fetchBoardData(boardId) {
           color: pickColor(listName, idx),
           track: 0,
           listId: card.idList,
-          labels: card.labels || []
+          listName: listName,
+          labels: card.labels || [],
+          isCompleted: Boolean(card.dueComplete)
         });
       });
 
@@ -332,7 +338,9 @@ async function fetchBoardData(boardId) {
           color: pickColor(listName, idx),
           track: 0,
           listId: card.idList,
-          labels: card.labels || []
+          listName: listName,
+          labels: card.labels || [],
+          isCompleted: Boolean(card.dueComplete)
         });
       });
 
@@ -505,12 +513,13 @@ function createTaskPill(task, days) {
 
   const pill = document.createElement("div");
   pill.id = `task-pill-${task.id}`;
-  pill.className = `task-pill color-${task.color || 'yellow'} track-${task.track || 0}`;
+  pill.className = `task-pill color-${task.color || 'yellow'} track-${task.track || 0} ${task.isCompleted ? 'is-completed' : ''}`;
   pill.style.left = `${leftPx}px`;
   pill.style.width = `${Math.max(100, widthPx)}px`;
 
-  pill.innerHTML = `<span>${task.name}</span>`;
-  pill.title = `${task.name}\n${task.startDate} to ${task.dueDate}`;
+  const checkHtml = task.isCompleted ? `<span class="task-check-circle" title="Completed">✓</span>` : ``;
+  pill.innerHTML = `${checkHtml}<span>${task.name}</span>`;
+  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${task.startDate} to ${task.dueDate}`;
 
   pill.addEventListener("click", () => openEditModal(task));
 
@@ -646,12 +655,30 @@ function openEditModal(task) {
   const assigneeSelect = document.getElementById("taskAssignee");
   const colorSelect = document.getElementById("taskColor");
   const idInput = document.getElementById("editCardId");
+  const completeBtn = document.getElementById("completeTaskBtn");
+  const unscheduleBtn = document.getElementById("unscheduleTaskBtn");
 
   idInput.value = task.id;
   titleInput.value = task.name;
-  startInput.value = task.startDate;
-  dueInput.value = task.dueDate;
+  startInput.value = task.startDate || "";
+  dueInput.value = task.dueDate || "";
   colorSelect.value = task.color || "yellow";
+
+  // Reflect completion status on complete button
+  if (completeBtn) {
+    if (task.isCompleted) {
+      completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Completed ✓</span>`;
+      completeBtn.style.opacity = "0.75";
+    } else {
+      completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Task Completed</span>`;
+      completeBtn.style.opacity = "1";
+    }
+  }
+
+  // If this card is in unscheduled drawer and being scheduled, hide unschedule button
+  if (unscheduleBtn) {
+    unscheduleBtn.style.display = task.isNewScheduled ? "none" : "inline-flex";
+  }
 
   assigneeSelect.innerHTML = "";
   activeRows.forEach(r => {
@@ -732,10 +759,25 @@ function bindUIEvents() {
     e.preventDefault();
     const id = document.getElementById("editCardId").value;
     const name = document.getElementById("taskName").value;
-    const start = document.getElementById("taskStartDate").value;
-    const due = document.getElementById("taskDueDate").value;
+    let start = document.getElementById("taskStartDate").value;
+    let due = document.getElementById("taskDueDate").value;
     const rowId = document.getElementById("taskAssignee").value;
     const color = document.getElementById("taskColor").value;
+
+    // If both dates are empty/cleared -> unschedule the task!
+    if (!start && !due) {
+      await handleUnscheduleTask();
+      return;
+    }
+
+    // If only one date is set, construct a valid 2-day span
+    if (!start && due) {
+      const d = new Date(due);
+      d.setDate(d.getDate() - 1);
+      start = formatLocalDate(d);
+    } else if (start && !due) {
+      due = start;
+    }
 
     const existingIndex = activeTasks.findIndex(t => t.id === id);
     if (existingIndex !== -1) {
@@ -752,7 +794,8 @@ function bindUIEvents() {
         dueDate: due,
         rowId: rowId,
         color: color,
-        track: 0
+        track: 0,
+        isCompleted: false
       });
       unscheduledTasks = unscheduledTasks.filter(u => u.id !== id);
     }
@@ -773,11 +816,14 @@ function bindUIEvents() {
     closeEditModal();
   });
 
-  document.getElementById("deleteTaskBtn").addEventListener("click", () => {
-    const id = document.getElementById("editCardId").value;
-    activeTasks = activeTasks.filter(t => t.id !== id);
-    renderTimeline();
-    closeEditModal();
+  // Action Buttons
+  document.getElementById("completeTaskBtn")?.addEventListener("click", handleCompleteTask);
+  document.getElementById("unscheduleTaskBtn")?.addEventListener("click", handleUnscheduleTask);
+  document.getElementById("clearStartDateBtn")?.addEventListener("click", () => {
+    document.getElementById("taskStartDate").value = "";
+  });
+  document.getElementById("clearDueDateBtn")?.addEventListener("click", () => {
+    document.getElementById("taskDueDate").value = "";
   });
 
   const addTaskBtn = document.getElementById("addTaskBtn");
@@ -900,4 +946,116 @@ function showNavToast(message) {
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
   }, 2800);
+}
+
+// ==========================================================================
+// Task Completion & Unscheduling Engine
+// ==========================================================================
+function resolveCompletedList(lists, compYear = new Date().getFullYear()) {
+  if (!lists || lists.length === 0) return null;
+  const yearStr = String(compYear);
+
+  // 1. If completed year is 2026 or 2027 (user explicit requirement):
+  if (compYear >= 2026 && compYear <= 2027) {
+    const match26 = lists.find(l => l.name.includes("2026-2027"));
+    if (match26) return match26;
+  }
+
+  // 2. Direct match with year in list name: e.g. "Task Completed (2026-2027)" or "Task Completed (2025-2026)"
+  let match = lists.find(l => {
+    const n = l.name.toLowerCase();
+    return n.includes("completed") && n.includes(yearStr);
+  });
+  if (match) return match;
+
+  // 3. Fallback bracket matching:
+  if (compYear >= 2026) {
+    match = lists.find(l => l.name.includes("2026-2027"));
+    if (match) return match;
+  } else if (compYear === 2025) {
+    match = lists.find(l => l.name.includes("2025-2026"));
+    if (match) return match;
+  } else if (compYear <= 2024) {
+    match = lists.find(l => l.name.includes("2024-2025") || l.name.includes("2022-2024"));
+    if (match) return match;
+  }
+
+  // 4. Any list containing "Completed"
+  match = lists.find(l => l.name.toLowerCase().includes("completed"));
+  return match || lists[lists.length - 1];
+}
+
+async function handleCompleteTask() {
+  const id = document.getElementById("editCardId").value;
+  if (!id) return;
+
+  const dueDateVal = document.getElementById("taskDueDate").value;
+  const startDateVal = document.getElementById("taskStartDate").value;
+  const compDate = dueDateVal ? new Date(dueDateVal + "T00:00:00") : (startDateVal ? new Date(startDateVal + "T00:00:00") : new Date());
+  const compYear = compDate.getFullYear();
+
+  const targetList = resolveCompletedList(currentBoardLists, compYear);
+  const targetListId = targetList ? targetList.id : "";
+  const targetListName = targetList ? targetList.name : "Task Completed (2026-2027)";
+
+  // Update in activeTasks
+  const task = activeTasks.find(t => t.id === id);
+  if (task) {
+    task.isCompleted = true;
+    if (targetListId) task.listId = targetListId;
+  }
+
+  // Sync to Trello API: set dueComplete=true and move to target completed list
+  if (!id.startsWith("custom_")) {
+    try {
+      const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&dueComplete=true${targetListId ? `&idList=${targetListId}` : ""}`;
+      await fetch(putUrl, { method: "PUT" });
+    } catch (err) {
+      console.error("Failed to mark task completed on Trello:", err);
+    }
+  }
+
+  computeTaskTracks();
+  renderTimeline();
+  closeEditModal();
+  showNavToast(`✅ Marked "${task ? task.name : 'Task'}" as completed in "${targetListName}"`);
+}
+
+async function handleUnscheduleTask() {
+  const id = document.getElementById("editCardId").value;
+  if (!id) return;
+
+  const existingIndex = activeTasks.findIndex(t => t.id === id);
+  let taskObj = null;
+
+  if (existingIndex !== -1) {
+    taskObj = activeTasks.splice(existingIndex, 1)[0];
+    
+    // Add to unscheduledTasks list if not already there
+    if (!unscheduledTasks.some(u => u.id === id)) {
+      unscheduledTasks.push({
+        id: taskObj.id,
+        name: taskObj.name,
+        list: taskObj.listName || "To Do",
+        listId: taskObj.listId,
+        labels: taskObj.labels || []
+      });
+    }
+  }
+
+  // Clear dates on Trello API (start=null & due=null)
+  if (!id.startsWith("custom_")) {
+    try {
+      const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&due=null&start=null`;
+      await fetch(putUrl, { method: "PUT" });
+    } catch (err) {
+      console.error("Failed to unschedule card on Trello:", err);
+    }
+  }
+
+  computeTaskTracks();
+  renderTimeline();
+  renderUnscheduledDrawer();
+  closeEditModal();
+  showNavToast(`🗓️ "${taskObj ? taskObj.name : 'Task'}" unscheduled & moved to Unscheduled drawer`);
 }

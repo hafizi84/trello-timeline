@@ -140,12 +140,18 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="taskStartDate">Start Date</label>
-              <input type="date" id="taskStartDate" required>
+              <div class="label-with-action">
+                <label for="taskStartDate">Start Date</label>
+                <button type="button" class="clear-field-link" id="clearStartDateBtn" title="Clear start date">Clear</button>
+              </div>
+              <input type="date" id="taskStartDate">
             </div>
             <div class="form-group">
-              <label for="taskDueDate">Due Date</label>
-              <input type="date" id="taskDueDate" required>
+              <div class="label-with-action">
+                <label for="taskDueDate">Due Date</label>
+                <button type="button" class="clear-field-link" id="clearDueDateBtn" title="Clear due date">Clear</button>
+              </div>
+              <input type="date" id="taskDueDate">
             </div>
           </div>
 
@@ -173,7 +179,16 @@
           </div>
 
           <div class="modal-actions">
-            <button type="button" id="deleteTaskBtn" class="danger-btn">Delete from Timeline</button>
+            <div class="modal-actions-left">
+              <button type="button" id="completeTaskBtn" class="complete-btn" title="Mark card as completed on Trello and move to Task Completed (2026-2027)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Task Completed</span>
+              </button>
+              <button type="button" id="unscheduleTaskBtn" class="unschedule-btn" title="Clear dates and remove task from timeline to Unscheduled drawer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                <span>Unschedule</span>
+              </button>
+            </div>
             <div class="modal-actions-right">
               <button type="button" id="cancelModalBtn" class="secondary-btn">Cancel</button>
               <button type="submit" id="saveTaskBtn" class="primary-btn">Save & Sync to Trello</button>
