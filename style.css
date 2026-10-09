@@ -1057,8 +1057,8 @@ body.is-dragging-task {
 .modal-content {
   background-color: #FFFFFF;
   border-radius: 16px;
-  width: 95%;
-  max-width: 900px;
+  width: 96%;
+  max-width: 1040px;
   max-height: 94vh;
   display: flex;
   flex-direction: column;
@@ -1107,6 +1107,233 @@ body.is-dragging-task {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
+}
+
+/* Two-Column Modal Body Layout */
+.modal-body-layout {
+  display: grid;
+  grid-template-columns: 1.18fr 0.82fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.modal-body-layout.holiday-mode {
+  grid-template-columns: 1fr;
+}
+
+.modal-body-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-body-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: #FAFBFD;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+@media (max-width: 860px) {
+  .modal-body-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+/* Checklist Section Styling */
+.checklist-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.checklist-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.checklist-panel-title svg {
+  color: #0079BF;
+}
+
+.checklist-counter-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background-color: #E0F2FE;
+  color: #0284C7;
+  transition: all 0.2s ease;
+}
+
+.checklist-counter-badge.is-all-done {
+  background-color: #DCFCE7;
+  color: #15803D;
+}
+
+.checklist-progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background-color: #E5E7EB;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 2px 0 4px 0;
+}
+
+.checklist-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background-color: #0079BF;
+  border-radius: 6px;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease;
+}
+
+.checklist-progress-bar-fill.is-all-done {
+  background-color: #10B981;
+}
+
+.checklist-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.checklist-empty-hint {
+  font-size: 0.82rem;
+  color: #9CA3AF;
+  padding: 14px 10px;
+  text-align: center;
+  border: 1px dashed #E5E7EB;
+  border-radius: 8px;
+  background-color: #FFFFFF;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.checklist-item:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.checklist-item.is-checked {
+  background-color: #F8FAFC;
+}
+
+.checklist-item-checkbox {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  accent-color: #0079BF;
+  flex-shrink: 0;
+}
+
+.checklist-item-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #1F2937;
+  word-break: break-word;
+  line-height: 1.4;
+  user-select: text;
+}
+
+.checklist-item.is-checked .checklist-item-text {
+  text-decoration: line-through;
+  color: #9CA3AF;
+}
+
+.checklist-item-delete {
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.checklist-item-delete:hover {
+  opacity: 1;
+  color: #EF4444;
+  background-color: #FEE2E2;
+}
+
+.checklist-add-form {
+  margin-top: 6px;
+}
+
+.checklist-add-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.checklist-add-input-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.checklist-add-input-row input:focus {
+  border-color: #0079BF;
+  box-shadow: 0 0 0 3px rgba(0, 121, 191, 0.15);
+}
+
+.checklist-add-btn {
+  background-color: #0079BF;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.checklist-add-btn:hover {
+  background-color: #026aa7;
+}
+
+/* Timeline Pill Checklist Prefix Badge */
+.task-pill-checklist-badge {
+  font-weight: 700;
+  opacity: 0.95;
+  margin-right: 4px;
+  letter-spacing: -0.2px;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 /* Segmented Entry Type Selector (Task vs Holiday / Leave) */

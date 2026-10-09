@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.5">
+  <link rel="stylesheet" href="style.css?v=2.7">
 </head>
 <body>
   <div class="app-container">
@@ -142,71 +142,108 @@
         <form id="taskForm" class="modal-form">
           <input type="hidden" id="editCardId">
           
-          <!-- Segmented Type Selector: Task vs Holiday / Leave -->
-          <div class="entry-type-selector">
-            <label class="entry-type-tab active" id="tabTypeTask">
-              <input type="radio" name="entryType" value="task" id="entryTypeTask" checked>
-              <span>📋 Task</span>
-            </label>
-            <label class="entry-type-tab" id="tabTypeHoliday">
-              <input type="radio" name="entryType" value="holiday" id="entryTypeHoliday">
-              <span>🌴 Public Holiday / Leave</span>
-            </label>
-          </div>
-
-          <div class="form-group" id="taskNameGroup">
-            <label for="taskName" id="taskNameLabel">Task Name</label>
-            <input type="text" id="taskName" required placeholder="e.g. Website design">
-          </div>
-
-          <div class="form-group" id="taskDescGroup">
-            <label for="taskDesc" id="taskDescLabel">Task Description</label>
-            <textarea id="taskDesc" rows="3" placeholder="Add detailed notes, links, or description..."></textarea>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <div class="label-with-action">
-                <label for="taskStartDate">Start Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
-                <button type="button" class="clear-field-link" id="clearStartDateBtn" title="Clear start date">Clear</button>
+          <div class="modal-body-layout" id="modalBodyLayout">
+            <!-- Left Column: Task Details & Properties -->
+            <div class="modal-body-left">
+              <!-- Segmented Type Selector: Task vs Holiday / Leave -->
+              <div class="entry-type-selector">
+                <label class="entry-type-tab active" id="tabTypeTask">
+                  <input type="radio" name="entryType" value="task" id="entryTypeTask" checked>
+                  <span>📋 Task</span>
+                </label>
+                <label class="entry-type-tab" id="tabTypeHoliday">
+                  <input type="radio" name="entryType" value="holiday" id="entryTypeHoliday">
+                  <span>🌴 Public Holiday / Leave</span>
+                </label>
               </div>
-              <input type="date" id="taskStartDate">
-            </div>
-            <div class="form-group">
-              <div class="label-with-action">
-                <label for="taskDueDate">Due Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
-                <button type="button" class="clear-field-link" id="clearDueDateBtn" title="Clear due date">Clear</button>
-              </div>
-              <input type="date" id="taskDueDate">
-            </div>
-          </div>
 
-          <div class="form-row form-row-3" id="taskClassificationRow">
-            <div class="form-group">
-              <label for="taskStatus" id="taskStatusLabel">Status</label>
-              <select id="taskStatus" class="select-dropdown">
-                <!-- Status lists populated here -->
-              </select>
+              <div class="form-group" id="taskNameGroup">
+                <label for="taskName" id="taskNameLabel">Task Name</label>
+                <input type="text" id="taskName" required placeholder="e.g. Website design">
+              </div>
+
+              <div class="form-group" id="taskDescGroup">
+                <label for="taskDesc" id="taskDescLabel">Task Description</label>
+                <textarea id="taskDesc" rows="3" placeholder="Add detailed notes, links, or description..."></textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="label-with-action">
+                    <label for="taskStartDate">Start Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
+                    <button type="button" class="clear-field-link" id="clearStartDateBtn" title="Clear start date">Clear</button>
+                  </div>
+                  <input type="date" id="taskStartDate">
+                </div>
+                <div class="form-group">
+                  <div class="label-with-action">
+                    <label for="taskDueDate">Due Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
+                    <button type="button" class="clear-field-link" id="clearDueDateBtn" title="Clear due date">Clear</button>
+                  </div>
+                  <input type="date" id="taskDueDate">
+                </div>
+              </div>
+
+              <div class="form-row form-row-3" id="taskClassificationRow">
+                <div class="form-group">
+                  <label for="taskStatus" id="taskStatusLabel">Status</label>
+                  <select id="taskStatus" class="select-dropdown">
+                    <!-- Status lists populated here -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="taskAssignee" id="taskRowLabel">Label</label>
+                  <select id="taskAssignee" class="select-dropdown">
+                    <!-- Labels populated here -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="taskColor">Theme / Color</label>
+                  <select id="taskColor" class="select-dropdown">
+                    <option value="yellow">💛 Warm Yellow</option>
+                    <option value="blue">💙 Pastel Blue</option>
+                    <option value="orange">🧡 Bright Orange</option>
+                    <option value="purple">💜 Soft Purple</option>
+                    <option value="green">💚 Mint Green</option>
+                    <option value="sky">🩵 Sky Blue</option>
+                    <option value="pink">🩷 Rose Pink</option>
+                    <option value="lime">🍏 Fresh Lime</option>
+                    <option value="milestone">🚩 Red (Milestone)</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="taskAssignee" id="taskRowLabel">Label</label>
-              <select id="taskAssignee" class="select-dropdown">
-                <!-- Labels populated here -->
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="taskColor">Theme / Color</label>
-              <select id="taskColor" class="select-dropdown">
-                <option value="yellow">💛 Warm Yellow</option>
-                <option value="blue">💙 Pastel Blue</option>
-                <option value="orange">🧡 Bright Orange</option>
-                <option value="purple">💜 Soft Purple</option>
-                <option value="green">💚 Mint Green</option>
-                <option value="sky">🩵 Sky Blue</option>
-                <option value="pink">🩷 Rose Pink</option>
-                <option value="lime">🍏 Fresh Lime</option>
-                <option value="milestone">🚩 Red (Milestone)</option>
-              </select>
+
+            <!-- Right Column: Checklist Section (Right side of popup) -->
+            <div class="modal-body-right" id="modalChecklistSection">
+              <div class="checklist-panel-header">
+                <div class="checklist-panel-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                  </svg>
+                  <span id="checklistSectionHeading">Checklist</span>
+                </div>
+                <div class="checklist-counter-badge" id="checklistCounterBadge">0%</div>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="checklist-progress-bar-container">
+                <div class="checklist-progress-bar-fill" id="checklistProgressBarFill" style="width: 0%;"></div>
+              </div>
+
+              <!-- Checklist Items List -->
+              <div class="checklist-items-list" id="checklistItemsList">
+                <!-- Dynamically populated checklist items -->
+              </div>
+
+              <!-- Add Item Form -->
+              <div class="checklist-add-form" id="checklistAddForm">
+                <div class="checklist-add-input-row">
+                  <input type="text" id="newCheckItemInput" placeholder="Add an item..." autocomplete="off">
+                  <button type="button" id="addCheckItemBtn" class="checklist-add-btn">Add</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -239,6 +276,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>

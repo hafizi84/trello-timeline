@@ -29,6 +29,29 @@ let currentBoardLists = []; // Holds active board lists for list movement
 let currentBoardLabels = []; // Holds all board labels for dropdown selection
 let rowNavIndexes = {}; // Tracks focused task index per row for double-click cycling
 let boardHolidays = []; // Holds public holidays & leave days { id, title, startDate, dueDate }
+let currentModalTask = null; // Tracks currently active task in modal
+let currentModalChecklists = []; // Holds active checklist objects for modal
+
+// Compute checklist completed/total counts and prefix text for timeline bar
+function getTaskChecklistCount(task) {
+  let total = 0;
+  let completed = 0;
+  if (task && task.checklists && Array.isArray(task.checklists) && task.checklists.length > 0) {
+    task.checklists.forEach(cl => {
+      (cl.checkItems || []).forEach(item => {
+        total++;
+        if (item.state === "complete") completed++;
+      });
+    });
+  }
+  if (total > 0) {
+    return { completed, total, text: `(${completed}/${total})` };
+  } else {
+    // If task has no checklist, display (0/1) or (1/1) if marked complete
+    const done = (task && task.isCompleted) ? 1 : 0;
+    return { completed: done, total: 1, text: `(${done}/1)` };
+  }
+}
 
 function getCenteredDate(baseDate, offsetDays) {
   const d = new Date(baseDate);
@@ -197,19 +220,32 @@ async function fetchBoardData(boardId) {
   syncStatus.innerHTML = `<span class="status-dot" style="background:#F59E0B"></span><span class="status-text">Syncing...</span>`;
 
   try {
-    // Fetch Cards, Lists, Members, and Board Labels
-    const [cardsRes, listsRes, membersRes, labelsRes] = await Promise.all([
+    // Fetch Cards, Lists, Members, Board Labels, and Board Checklists
+    const [cardsRes, listsRes, membersRes, labelsRes, checklistsRes] = await Promise.all([
       fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,desc,due,start,idMembers,idList,labels,id,dueComplete`),
       fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
       fetch(`https://api.trello.com/1/boards/${boardId}/members?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
-      fetch(`https://api.trello.com/1/boards/${boardId}/labels?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
+      fetch(`https://api.trello.com/1/boards/${boardId}/labels?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
+      fetch(`https://api.trello.com/1/boards/${boardId}/checklists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
     ]);
 
     const cards = await cardsRes.json();
     const lists = await listsRes.json();
     const members = await membersRes.json();
     const boardLabelsData = await labelsRes.json();
+    const boardChecklistsData = checklistsRes.ok ? await checklistsRes.json() : [];
     currentBoardLists = lists; // Store lists globally for completed task routing
+
+    // Index all board checklists by card ID
+    const cardChecklistsMap = new Map();
+    if (Array.isArray(boardChecklistsData)) {
+      boardChecklistsData.forEach(cl => {
+        if (!cardChecklistsMap.has(cl.idCard)) {
+          cardChecklistsMap.set(cl.idCard, []);
+        }
+        cardChecklistsMap.get(cl.idCard).push(cl);
+      });
+    }
 
     // Process and cache all available board labels for dropdown selection
     const labelList = [];
@@ -269,6 +305,8 @@ async function fetchBoardData(boardId) {
     cards.forEach((card, idx) => {
       const listObj = lists.find(l => l.id === card.idList);
       const listName = listObj ? listObj.name : "";
+      const cardChecklists = cardChecklistsMap.get(card.id) || [];
+      card.checklists = cardChecklists;
 
       // Check if this card is marked as a Holiday / Leave
       const isHol = card.name.startsWith("🌴") || card.name.startsWith("[Holiday]");
@@ -318,6 +356,7 @@ async function fetchBoardData(boardId) {
           sDate,
           dDate,
           listName,
+          checklists: cardChecklists,
           idx
         });
       } else {
@@ -327,7 +366,8 @@ async function fetchBoardData(boardId) {
           desc: card.desc || "",
           list: listName || "To Do",
           listId: card.idList,
-          labels: card.labels || []
+          labels: card.labels || [],
+          checklists: cardChecklists
         });
       }
     });
@@ -394,6 +434,7 @@ async function fetchBoardData(boardId) {
           listName: listName,
           labelId: labelId,
           labels: card.labels || [],
+          checklists: card.checklists || [],
           isCompleted: Boolean(card.dueComplete)
         });
       });
@@ -441,6 +482,7 @@ async function fetchBoardData(boardId) {
           listId: card.idList,
           listName: listName,
           labels: card.labels || [],
+          checklists: card.checklists || [],
           isCompleted: Boolean(card.dueComplete)
         });
       });
@@ -476,6 +518,7 @@ async function fetchBoardData(boardId) {
         activeTasks.push({
           id: card.id,
           name: card.name,
+          desc: card.desc || "",
           rowId: memId,
           startDate: sDate,
           dueDate: dDate,
@@ -484,6 +527,7 @@ async function fetchBoardData(boardId) {
           listId: card.idList,
           listName: listName,
           labels: card.labels || [],
+          checklists: card.checklists || [],
           isCompleted: Boolean(card.dueComplete)
         });
       });
@@ -743,17 +787,18 @@ function createTaskPill(task, days) {
   pill.style.width = `${Math.max(80, widthPx)}px`;
   pill.dataset.taskId = task.id;
 
+  const clInfo = getTaskChecklistCount(task);
   const checkHtml = task.isCompleted ? `<span class="task-check-circle" title="Completed">✓</span>` : ``;
 
   pill.innerHTML = `
     <div class="task-resize-handle resize-left" title="Drag to adjust start date"></div>
     <div class="task-pill-inner">
-      ${checkHtml}<span class="task-pill-title">${task.name}</span>
+      ${checkHtml}<span class="task-pill-checklist-badge">${clInfo.text}</span><span class="task-pill-title">${task.name}</span>
     </div>
     <div class="task-resize-handle resize-right" title="Drag to adjust due date (length)"></div>
   `;
   const descSnippet = task.desc ? `\n📝 ${task.desc.length > 80 ? task.desc.substring(0, 80) + '...' : task.desc}` : '';
-  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
+  pill.title = `${clInfo.text} ${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
 
   // Attach drag & resize interactivity
   setupTaskDragAndResize(pill, task);
@@ -999,10 +1044,11 @@ function renderUnscheduledDrawer() {
   }
 
   unscheduledTasks.forEach(task => {
+    const clInfo = getTaskChecklistCount(task);
     const card = document.createElement("div");
     card.className = "unscheduled-card-item";
     card.innerHTML = `
-      <div class="unscheduled-card-title">${task.name}</div>
+      <div class="unscheduled-card-title"><span class="task-pill-checklist-badge">${clInfo.text}</span>${task.name}</div>
       <span class="unscheduled-card-list">${task.list}</span>
     `;
 
@@ -1032,6 +1078,7 @@ function renderUnscheduledDrawer() {
         listId: task.listId,
         listName: task.list,
         labels: task.labels || [],
+        checklists: task.checklists || [],
         color: "yellow",
         isNewScheduled: true
       });
@@ -1039,6 +1086,238 @@ function renderUnscheduledDrawer() {
 
     listEl.appendChild(card);
   });
+}
+
+// ==========================================================================
+// Modal Checklist Management Engine
+// ==========================================================================
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderModalChecklist() {
+  const listEl = document.getElementById("checklistItemsList");
+  const badgeEl = document.getElementById("checklistCounterBadge");
+  const progressFill = document.getElementById("checklistProgressBarFill");
+  if (!listEl) return;
+
+  listEl.innerHTML = "";
+
+  // Aggregate all checkItems across checklists
+  let allItems = [];
+  currentModalChecklists.forEach(cl => {
+    (cl.checkItems || []).forEach(item => {
+      allItems.push({ ...item, checklistId: cl.id });
+    });
+  });
+
+  const total = allItems.length;
+  const completed = allItems.filter(i => i.state === "complete").length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  if (badgeEl) {
+    badgeEl.textContent = total > 0 ? `${completed}/${total} (${pct}%)` : `0/0 (0%)`;
+    if (pct === 100 && total > 0) {
+      badgeEl.classList.add("is-all-done");
+    } else {
+      badgeEl.classList.remove("is-all-done");
+    }
+  }
+
+  if (progressFill) {
+    progressFill.style.width = `${pct}%`;
+    if (pct === 100 && total > 0) {
+      progressFill.classList.add("is-all-done");
+    } else {
+      progressFill.classList.remove("is-all-done");
+    }
+  }
+
+  if (total === 0) {
+    listEl.innerHTML = `<div class="checklist-empty-hint">No checklist items yet. Add one below!</div>`;
+    return;
+  }
+
+  allItems.forEach(item => {
+    const isComp = item.state === "complete";
+    const row = document.createElement("div");
+    row.className = `checklist-item ${isComp ? "is-checked" : ""}`;
+    row.dataset.checklistId = item.checklistId;
+    row.dataset.itemId = item.id;
+
+    row.innerHTML = `
+      <input type="checkbox" class="checklist-item-checkbox" ${isComp ? "checked" : ""} title="${isComp ? 'Mark incomplete' : 'Mark complete'}">
+      <span class="checklist-item-text" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+      <button type="button" class="checklist-item-delete" title="Delete checklist item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+async function handleToggleCheckItem(checklistId, itemId, isChecked) {
+  const newState = isChecked ? "complete" : "incomplete";
+
+  currentModalChecklists.forEach(cl => {
+    (cl.checkItems || []).forEach(item => {
+      if (item.id === itemId || String(item.id) === String(itemId)) {
+        item.state = newState;
+      }
+    });
+  });
+
+  renderModalChecklist();
+
+  if (currentModalTask) {
+    currentModalTask.checklists = currentModalChecklists;
+    const activeIdx = activeTasks.findIndex(t => t.id === currentModalTask.id);
+    if (activeIdx !== -1) {
+      activeTasks[activeIdx].checklists = currentModalChecklists;
+    }
+    const unschedIdx = unscheduledTasks.findIndex(u => u.id === currentModalTask.id);
+    if (unschedIdx !== -1) {
+      unscheduledTasks[unschedIdx].checklists = currentModalChecklists;
+    }
+    renderTimeline();
+    renderUnscheduledDrawer();
+  }
+
+  const isRealCard = currentModalTask && currentModalTask.id && !currentModalTask.id.startsWith("custom_") && !currentModalTask.id.startsWith("new_") && !currentModalTask.id.startsWith("holiday_");
+  const isRealItem = itemId && !String(itemId).startsWith("temp_");
+
+  if (isRealCard && isRealItem) {
+    try {
+      const putUrl = `https://api.trello.com/1/cards/${currentModalTask.id}/checkItem/${itemId}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&state=${newState}`;
+      await fetch(putUrl, { method: "PUT" });
+    } catch (err) {
+      console.error("Failed to update checkItem state on Trello:", err);
+    }
+  }
+}
+
+async function handleDeleteCheckItem(checklistId, itemId) {
+  currentModalChecklists.forEach(cl => {
+    if (cl.checkItems) {
+      cl.checkItems = cl.checkItems.filter(item => item.id !== itemId && String(item.id) !== String(itemId));
+    }
+  });
+
+  renderModalChecklist();
+
+  if (currentModalTask) {
+    currentModalTask.checklists = currentModalChecklists;
+    const activeIdx = activeTasks.findIndex(t => t.id === currentModalTask.id);
+    if (activeIdx !== -1) {
+      activeTasks[activeIdx].checklists = currentModalChecklists;
+    }
+    const unschedIdx = unscheduledTasks.findIndex(u => u.id === currentModalTask.id);
+    if (unschedIdx !== -1) {
+      unscheduledTasks[unschedIdx].checklists = currentModalChecklists;
+    }
+    renderTimeline();
+    renderUnscheduledDrawer();
+  }
+
+  const isRealCard = currentModalTask && currentModalTask.id && !currentModalTask.id.startsWith("custom_") && !currentModalTask.id.startsWith("new_") && !currentModalTask.id.startsWith("holiday_");
+  const isRealItem = itemId && !String(itemId).startsWith("temp_");
+
+  if (isRealCard && isRealItem && checklistId && !String(checklistId).startsWith("temp_")) {
+    try {
+      const delUrl = `https://api.trello.com/1/checklists/${checklistId}/checkItems/${itemId}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`;
+      await fetch(delUrl, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete checkItem on Trello:", err);
+    }
+  }
+}
+
+async function handleAddCheckItem() {
+  const input = document.getElementById("newCheckItemInput");
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+
+  const isRealCard = currentModalTask && currentModalTask.id && !currentModalTask.id.startsWith("custom_") && !currentModalTask.id.startsWith("new_") && !currentModalTask.id.startsWith("holiday_");
+
+  if (currentModalChecklists.length === 0) {
+    if (isRealCard) {
+      try {
+        const createClUrl = `https://api.trello.com/1/cards/${currentModalTask.id}/checklists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=Checklist`;
+        const resCl = await fetch(createClUrl, { method: "POST" });
+        if (resCl.ok) {
+          const newCl = await resCl.json();
+          newCl.checkItems = [];
+          currentModalChecklists.push(newCl);
+
+          const addItemUrl = `https://api.trello.com/1/checklists/${newCl.id}/checkItems?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(text)}`;
+          const resItem = await fetch(addItemUrl, { method: "POST" });
+          if (resItem.ok) {
+            const newItem = await resItem.json();
+            newCl.checkItems.push(newItem);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to create checklist and item on Trello:", err);
+      }
+    } else {
+      const tempCl = {
+        id: "temp_cl_" + Date.now(),
+        name: "Checklist",
+        checkItems: [
+          { id: "temp_item_" + Date.now(), name: text, state: "incomplete" }
+        ]
+      };
+      currentModalChecklists.push(tempCl);
+    }
+  } else {
+    const targetCl = currentModalChecklists[0];
+    if (isRealCard && targetCl.id && !String(targetCl.id).startsWith("temp_")) {
+      try {
+        const addItemUrl = `https://api.trello.com/1/checklists/${targetCl.id}/checkItems?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(text)}`;
+        const resItem = await fetch(addItemUrl, { method: "POST" });
+        if (resItem.ok) {
+          const newItem = await resItem.json();
+          if (!targetCl.checkItems) targetCl.checkItems = [];
+          targetCl.checkItems.push(newItem);
+        }
+      } catch (err) {
+        console.error("Failed to add checkItem to Trello:", err);
+      }
+    } else {
+      if (!targetCl.checkItems) targetCl.checkItems = [];
+      targetCl.checkItems.push({
+        id: "temp_item_" + Date.now(),
+        name: text,
+        state: "incomplete"
+      });
+    }
+  }
+
+  renderModalChecklist();
+
+  if (currentModalTask) {
+    currentModalTask.checklists = currentModalChecklists;
+    const activeIdx = activeTasks.findIndex(t => t.id === currentModalTask.id);
+    if (activeIdx !== -1) {
+      activeTasks[activeIdx].checklists = currentModalChecklists;
+    }
+    const unschedIdx = unscheduledTasks.findIndex(u => u.id === currentModalTask.id);
+    if (unschedIdx !== -1) {
+      unscheduledTasks[unschedIdx].checklists = currentModalChecklists;
+    }
+    renderTimeline();
+    renderUnscheduledDrawer();
+  }
+
+  input.focus();
 }
 
 function openEditModal(task) {
@@ -1058,6 +1337,14 @@ function openEditModal(task) {
   const saveBtn = document.getElementById("saveTaskBtn");
 
   const isNew = Boolean(task.isNewScheduled || (task.id && task.id.startsWith("custom_")) || (task.id && task.id.startsWith("new_")));
+
+  currentModalTask = task;
+  currentModalChecklists = (task.checklists && Array.isArray(task.checklists))
+    ? JSON.parse(JSON.stringify(task.checklists))
+    : [];
+
+  const newCheckInput = document.getElementById("newCheckItemInput");
+  if (newCheckInput) newCheckInput.value = "";
 
   const descInput = document.getElementById("taskDesc");
   const descLabel = document.getElementById("taskDescLabel");
@@ -1095,7 +1382,11 @@ function openEditModal(task) {
   const deleteHolidayBtn = document.getElementById("deleteHolidayBtn");
 
   function setEntryModeUI(isHoliday) {
+    const modalChecklistSection = document.getElementById("modalChecklistSection");
+    const modalBodyLayout = document.querySelector(".modal-body-layout");
     if (isHoliday) {
+      if (modalChecklistSection) modalChecklistSection.style.display = "none";
+      if (modalBodyLayout) modalBodyLayout.classList.add("holiday-mode");
       if (typeHolidayRadio) typeHolidayRadio.checked = true;
       tabTypeHoliday?.classList.add("active");
       tabTypeTask?.classList.remove("active");
@@ -1111,6 +1402,8 @@ function openEditModal(task) {
       if (archiveBtn) archiveBtn.style.display = "none";
       if (deleteHolidayBtn) deleteHolidayBtn.style.display = isNew ? "none" : "inline-flex";
     } else {
+      if (modalChecklistSection) modalChecklistSection.style.display = "flex";
+      if (modalBodyLayout) modalBodyLayout.classList.remove("holiday-mode");
       if (typeTaskRadio) typeTaskRadio.checked = true;
       tabTypeTask?.classList.add("active");
       tabTypeHoliday?.classList.remove("active");
@@ -1131,6 +1424,8 @@ function openEditModal(task) {
   setEntryModeUI(Boolean(task.isHoliday));
   if (typeTaskRadio) typeTaskRadio.onchange = () => setEntryModeUI(false);
   if (typeHolidayRadio) typeHolidayRadio.onchange = () => setEntryModeUI(true);
+
+  renderModalChecklist();
 
   // Reflect completion status or hide actions completely for new tasks
   if (completeBtn) {
@@ -1466,6 +1761,32 @@ function bindUIEvents() {
         console.error("Failed to create card on Trello:", err);
       }
 
+      // If staged checklist items exist, create checklist and items on Trello
+      let finalChecklists = [];
+      if (currentModalChecklists.length > 0 && currentModalChecklists.some(cl => (cl.checkItems || []).length > 0)) {
+        try {
+          const createClUrl = `https://api.trello.com/1/cards/${realCardId}/checklists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=Checklist`;
+          const resCl = await fetch(createClUrl, { method: "POST" });
+          if (resCl.ok) {
+            const newCl = await resCl.json();
+            newCl.checkItems = [];
+            for (const cl of currentModalChecklists) {
+              for (const item of (cl.checkItems || [])) {
+                const addItemUrl = `https://api.trello.com/1/checklists/${newCl.id}/checkItems?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(item.name)}&checked=${item.state === 'complete'}`;
+                const resItem = await fetch(addItemUrl, { method: "POST" });
+                if (resItem.ok) {
+                  const createdItem = await resItem.json();
+                  newCl.checkItems.push(createdItem);
+                }
+              }
+            }
+            finalChecklists = [newCl];
+          }
+        } catch (err) {
+          console.error("Failed to sync new card checklists to Trello:", err);
+        }
+      }
+
       const assignedRowId = currentViewMode === "label" ? selectedLabelId : targetListId;
 
       activeTasks.push({
@@ -1481,6 +1802,7 @@ function bindUIEvents() {
         listName: selectedListName,
         labelId: selectedLabelId,
         labels: cardLabels,
+        checklists: finalChecklists,
         isCompleted: false
       });
       unscheduledTasks = unscheduledTasks.filter(u => u.id !== id);
@@ -1494,6 +1816,7 @@ function bindUIEvents() {
         activeTasks[existingIndex].dueDate = due;
         activeTasks[existingIndex].color = color;
         activeTasks[existingIndex].labelId = selectedLabelId;
+        activeTasks[existingIndex].checklists = currentModalChecklists;
         if (selectedStatusId) {
           activeTasks[existingIndex].listId = selectedStatusId;
           activeTasks[existingIndex].listName = selectedListName;
@@ -1514,6 +1837,7 @@ function bindUIEvents() {
           listId: selectedStatusId,
           listName: selectedListName,
           labelId: selectedLabelId,
+          checklists: currentModalChecklists,
           isCompleted: false
         });
         unscheduledTasks = unscheduledTasks.filter(u => u.id !== id);
@@ -1637,8 +1961,47 @@ function bindUIEvents() {
         dueDate: formatLocalDate(tomorrow),
         rowId: defaultRowId,
         color: "yellow",
+        checklists: [],
         isNewScheduled: true
       });
+    });
+  }
+
+  // Checklist Action Events
+  const addCheckBtn = document.getElementById("addCheckItemBtn");
+  const newCheckInput = document.getElementById("newCheckItemInput");
+  if (addCheckBtn) {
+    addCheckBtn.addEventListener("click", handleAddCheckItem);
+  }
+  if (newCheckInput) {
+    newCheckInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleAddCheckItem();
+      }
+    });
+  }
+
+  // Delegated events on checklist container (checkbox toggle & delete)
+  const checklistListEl = document.getElementById("checklistItemsList");
+  if (checklistListEl) {
+    checklistListEl.addEventListener("change", (e) => {
+      if (e.target.classList.contains("checklist-item-checkbox")) {
+        const row = e.target.closest(".checklist-item");
+        if (row) {
+          handleToggleCheckItem(row.dataset.checklistId, row.dataset.itemId, e.target.checked);
+        }
+      }
+    });
+
+    checklistListEl.addEventListener("click", (e) => {
+      const deleteBtn = e.target.closest(".checklist-item-delete");
+      if (deleteBtn) {
+        const row = deleteBtn.closest(".checklist-item");
+        if (row) {
+          handleDeleteCheckItem(row.dataset.checklistId, row.dataset.itemId);
+        }
+      }
     });
   }
 
@@ -1700,6 +2063,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
       rowId: "",
       color: "yellow",
       isHoliday: true,
+      checklists: [],
       isNewScheduled: false
     });
     return;
@@ -1737,6 +2101,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
     dueDate: formatLocalDate(dueDate),
     rowId: rowId,
     color: taskColor,
+    checklists: [],
     isNewScheduled: true
   });
 }
