@@ -199,7 +199,7 @@ async function fetchBoardData(boardId) {
   try {
     // Fetch Cards, Lists, Members, and Board Labels
     const [cardsRes, listsRes, membersRes, labelsRes] = await Promise.all([
-      fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,due,start,idMembers,idList,labels,id,dueComplete`),
+      fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,desc,due,start,idMembers,idList,labels,id,dueComplete`),
       fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
       fetch(`https://api.trello.com/1/boards/${boardId}/members?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
       fetch(`https://api.trello.com/1/boards/${boardId}/labels?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
