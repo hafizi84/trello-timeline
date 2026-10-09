@@ -423,7 +423,7 @@ body {
 
 /* Sidebar Row Cell (Matches screenshot exact layout: Avatar + Name) */
 .sidebar-row-cell {
-  height: var(--row-height);
+  min-height: 56px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -432,7 +432,8 @@ body {
   gap: 5px;
   padding: 8px 6px;
   background-color: #FFFFFF;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, height 0.2s ease;
+  box-sizing: border-box;
 }
 
 .sidebar-row-cell:hover {
@@ -665,10 +666,12 @@ body {
 }
 
 .timeline-grid-row {
-  height: var(--row-height);
+  min-height: 56px;
   border-bottom: 1px solid var(--border-color);
   position: relative;
   display: flex;
+  transition: height 0.2s ease;
+  box-sizing: border-box;
 }
 
 /* Background Day Columns */

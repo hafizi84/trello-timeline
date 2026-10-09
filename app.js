@@ -558,6 +558,8 @@ async function fetchBoardData(boardId) {
 // Rendering Engine
 // ==========================================================================
 function renderTimeline() {
+  computeTaskTracks(); // Ensure tracks and row track counts are fresh
+
   const sidebarRows = document.getElementById("sidebarRows");
   const headerRow = document.getElementById("timelineHeaderRow");
   const gridBody = document.getElementById("timelineGridBody");
@@ -616,11 +618,20 @@ function renderTimeline() {
   // Position vertical red indicator line based on current time (9:00 AM - 6:00 PM)
   updateTodayMarkerPosition();
 
+  const PILL_HEIGHT = 32;
+  const TRACK_GAP = 8;
+  const ROW_PADDING_Y = 12;
+
   // 3. Render Left Sidebar Rows
   activeRows.forEach(row => {
+    const trackCount = Math.max(1, row.trackCount || 1);
+    const rowHeight = (ROW_PADDING_Y * 2) + (trackCount * PILL_HEIGHT) + ((trackCount - 1) * TRACK_GAP);
+
     const rowEl = document.createElement("div");
     rowEl.className = `sidebar-row-cell ${row.isLabel ? "is-label-row" : ""} ${row.isMilestone ? "is-milestone-row" : ""}`;
     rowEl.dataset.rowId = row.id;
+    rowEl.style.height = `${rowHeight}px`;
+    rowEl.style.minHeight = `${rowHeight}px`;
 
     const rowTasksCount = activeTasks.filter(t => t.rowId === row.id).length;
     rowEl.title = `${row.name} (${rowTasksCount} scheduled task${rowTasksCount === 1 ? '' : 's'})\n💡 Double-click to cycle through tasks (latest to oldest)`;
@@ -668,6 +679,8 @@ function renderTimeline() {
     const gridRow = document.createElement("div");
     gridRow.className = "timeline-grid-row";
     gridRow.dataset.rowId = row.id;
+    gridRow.style.height = `${rowHeight}px`;
+    gridRow.style.minHeight = `${rowHeight}px`;
 
     days.forEach(day => {
       const dayStr = formatLocalDate(day);
@@ -758,6 +771,10 @@ function updateTodayMarkerPosition() {
   const xPos = todayColIndex * colWidth + offsetInCol;
   todayMarker.style.display = "block";
   todayMarker.style.left = `${xPos}px`;
+  const gridBody = document.getElementById("timelineGridBody");
+  if (gridBody) {
+    todayMarker.style.height = `${gridBody.offsetHeight}px`;
+  }
 
   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   todayMarker.title = `Current Time: ${timeStr} • Date: ${formatDateDDMMYYYY(now)} (Today's Working Hours: 9:00 AM – 6:00 PM)`;
@@ -780,10 +797,17 @@ function createTaskPill(task, days) {
   const leftPx = startOffset * colWidth + 8;
   const widthPx = spanDays * colWidth - 16;
 
+  const PILL_HEIGHT = 32;
+  const TRACK_GAP = 8;
+  const ROW_PADDING_Y = 12;
+  const topPx = ROW_PADDING_Y + (task.track || 0) * (PILL_HEIGHT + TRACK_GAP);
+
   const pill = document.createElement("div");
   pill.id = `task-pill-${task.id}`;
   pill.className = `task-pill color-${task.color || 'yellow'} track-${task.track || 0} ${task.isCompleted ? 'is-completed' : ''}`;
   pill.style.left = `${leftPx}px`;
+  pill.style.top = `${topPx}px`;
+  pill.style.height = `${PILL_HEIGHT}px`;
   pill.style.width = `${Math.max(80, widthPx)}px`;
   pill.dataset.taskId = task.id;
 
@@ -960,7 +984,7 @@ function getOrCreateDragTooltip() {
   return el;
 }
 
-// Compute tracks for overlapping tasks within the same row
+// Compute tracks for overlapping tasks within the same row (Greedy Interval Scheduling)
 function computeTaskTracks() {
   const rows = {};
   activeTasks.forEach(t => {
@@ -968,30 +992,49 @@ function computeTaskTracks() {
     rows[t.rowId].push(t);
   });
 
-  Object.values(rows).forEach(taskList => {
-    taskList.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-    const tracksEnd = [];
+  const rowTrackCountMap = {};
+
+  Object.entries(rows).forEach(([rowId, taskList]) => {
+    // Sort tasks primarily by startDate ascending; secondarily by dueDate ascending
+    taskList.sort((a, b) => {
+      const sA = new Date((a.startDate || a.dueDate) + "T00:00:00").getTime();
+      const sB = new Date((b.startDate || b.dueDate) + "T00:00:00").getTime();
+      if (sA !== sB) return sA - sB;
+      const dA = new Date((a.dueDate || a.startDate) + "T00:00:00").getTime();
+      const dB = new Date((b.dueDate || b.startDate) + "T00:00:00").getTime();
+      return dA - dB;
+    });
+
+    const tracksEnd = []; // tracksEnd[trackIndex] = timestamp (ms) of the dueDate of the last task on that track
 
     taskList.forEach(task => {
-      const s = new Date(task.startDate).getTime();
-      const d = new Date(task.dueDate).getTime();
+      const startMs = new Date((task.startDate || task.dueDate) + "T00:00:00").getTime();
+      const dueMs = new Date((task.dueDate || task.startDate) + "T00:00:00").getTime();
 
-      let assignedTrack = 0;
+      let assignedTrack = -1;
       for (let i = 0; i < tracksEnd.length; i++) {
-        if (s >= tracksEnd[i]) {
+        // Task can share this track only if its start date is strictly after the previous task's due date
+        if (startMs > tracksEnd[i]) {
           assignedTrack = i;
+          tracksEnd[i] = dueMs;
           break;
         }
       }
 
-      if (assignedTrack === tracksEnd.length) {
-        tracksEnd.push(d);
-      } else {
-        tracksEnd[assignedTrack] = d;
+      if (assignedTrack === -1) {
+        assignedTrack = tracksEnd.length;
+        tracksEnd.push(dueMs);
       }
 
-      task.track = Math.min(1, assignedTrack);
+      task.track = assignedTrack;
     });
+
+    rowTrackCountMap[rowId] = Math.max(1, tracksEnd.length);
+  });
+
+  // Assign trackCount to activeRows
+  activeRows.forEach(r => {
+    r.trackCount = rowTrackCountMap[r.id] || 1;
   });
 }
 
