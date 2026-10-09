@@ -7,12 +7,17 @@
 </head>
 <body>
   <script>
+    var BASE_URL = 'https://hafizi84.github.io/trello-timeline/';
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+    }
+
     window.TrelloPowerUp.initialize({
       'board-buttons': function(t, options) {
         return [{
           icon: {
-            dark: 'https://raw.githubusercontent.com/tabler/tabler-icons/master/icons/outline/chart-bar.svg',
-            light: 'https://raw.githubusercontent.com/tabler/tabler-icons/master/icons/outline/chart-bar.svg'
+            dark: BASE_URL + 'icon-white.svg',
+            light: BASE_URL + 'icon-dark.svg'
           },
           text: 'Timeline',
           callback: function(t) {
