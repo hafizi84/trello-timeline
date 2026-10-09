@@ -978,6 +978,52 @@ body.is-dragging-task {
   font-size: 10px;
 }
 
+/* Automatic State-based Color Overrides */
+/* 1. Mint Green: Checklist is 100% completed */
+.task-pill.is-completed,
+.task-pill.color-green {
+  background-color: var(--pill-green-bg) !important;
+  color: var(--pill-green-text) !important;
+  border: 1px solid var(--pill-green-border) !important;
+}
+
+.task-pill.is-completed:hover,
+.task-pill.color-green:hover {
+  background-color: #AEE6A9 !important;
+  border-color: #97D990 !important;
+}
+
+.task-pill.is-completed .task-check-circle,
+.task-pill.color-green .task-check-circle {
+  background-color: #16A34A;
+  color: #FFFFFF;
+}
+
+/* 2. Red: Task is overdue (due date < today and not 100% completed) */
+.task-pill.is-overdue {
+  background-color: #FEE2E2 !important;
+  color: #991B1B !important;
+  border: 1px solid #FCA5A5 !important;
+}
+
+.task-pill.is-overdue:hover {
+  background-color: #FED4D4 !important;
+  border-color: #F87171 !important;
+}
+
+.task-pill.is-overdue .task-pill-checklist-badge {
+  color: #991B1B;
+}
+
+.task-overdue-icon {
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 3px;
+  line-height: 1;
+}
+
 /* Stacking Sub-Tracks inside a single row */
 .task-pill.track-0 {
   top: 8px;

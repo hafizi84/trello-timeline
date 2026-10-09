@@ -59,6 +59,57 @@ function getTaskChecklistCount(task) {
   }
 }
 
+// Check if a task's checklist is all completed (100%), or if card is marked complete
+function isTaskChecklistCompleted(task) {
+  if (!task) return false;
+
+  // 1. If task has checklists with items, verify 100% of items are complete
+  if (task.checklists && Array.isArray(task.checklists) && task.checklists.length > 0) {
+    let totalItems = 0;
+    let completedItems = 0;
+    task.checklists.forEach(cl => {
+      (cl.checkItems || []).forEach(item => {
+        totalItems++;
+        if (item.state === "complete") completedItems++;
+      });
+    });
+    if (totalItems > 0) {
+      return completedItems === totalItems;
+    }
+  }
+
+  // 2. If task has no checklist items, check if card itself is marked completed
+  return Boolean(task.isCompleted);
+}
+
+// Check if a task is overdue (due date has passed before today, and not yet 100% completed)
+function isTaskOverdue(task) {
+  if (!task || !task.dueDate) return false;
+
+  // Completed tasks are never overdue
+  if (isTaskChecklistCompleted(task)) return false;
+
+  const todayStr = formatLocalDate(new Date());
+  const dueStr = String(task.dueDate).split("T")[0];
+  if (!dueStr || dueStr.length < 10) return false;
+
+  return dueStr < todayStr;
+}
+
+// Compute the effective pill/bar color:
+// 1. Mint Green ('green') if checklist is 100% completed
+// 2. Red ('red') if overdue (due date < today and not completed)
+// 3. Otherwise normal assigned color (defaults to Pastel Blue 'blue')
+function getEffectiveTaskColor(task) {
+  if (isTaskChecklistCompleted(task)) {
+    return "green"; // Mint Green for 100% complete
+  }
+  if (isTaskOverdue(task)) {
+    return "red"; // Red for overdue
+  }
+  return task.color || "blue"; // Pastel Blue / assigned color
+}
+
 function getCenteredDate(baseDate, offsetDays) {
   const d = new Date(baseDate);
   d.setDate(d.getDate() + offsetDays);
@@ -132,7 +183,7 @@ function getLabelEmoji(colorName) {
 
 // Map Trello color names to Task Pill CSS color variants
 function mapTrelloColorToPillColor(colorName) {
-  if (!colorName) return "yellow";
+  if (!colorName) return "blue";
   const c = colorName.toLowerCase();
   if (c.includes("blue_light") || c.includes("sky")) return "sky";
   if (c.includes("blue")) return "blue";
@@ -144,7 +195,7 @@ function mapTrelloColorToPillColor(colorName) {
   if (c.includes("red")) return "red";
   if (c.includes("yellow")) return "yellow";
   if (c.includes("black")) return "gray";
-  return "yellow";
+  return "blue";
 }
 
 // Get official Trello label hex color for the sidebar tag badge
@@ -1010,17 +1061,23 @@ function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
     topPx = ROW_PADDING_Y + (task.track || 0) * (PILL_HEIGHT + TRACK_GAP);
   }
 
+  const clInfo = getTaskChecklistCount(task);
+  const isCompleted = isTaskChecklistCompleted(task);
+  const isOverdue = isTaskOverdue(task);
+  const effectiveColor = getEffectiveTaskColor(task);
+
+  const checkHtml = isCompleted
+    ? `<span class="task-check-circle" title="100% Completed">✓</span>`
+    : (isOverdue ? `<span class="task-overdue-icon" title="Overdue">⚠️</span>` : ``);
+
   const pill = document.createElement("div");
   pill.id = `task-pill-${task.id}`;
-  pill.className = `task-pill color-${task.color || 'yellow'} track-${task.track || 0} ${task.isCompleted ? 'is-completed' : ''}`;
+  pill.className = `task-pill color-${effectiveColor} track-${task.track || 0} ${isCompleted ? 'is-completed' : ''} ${isOverdue ? 'is-overdue' : ''}`;
   pill.style.left = `${leftPx}px`;
   pill.style.top = `${topPx}px`;
   pill.style.height = `${PILL_HEIGHT}px`;
   pill.style.width = `${Math.max(80, widthPx)}px`;
   pill.dataset.taskId = task.id;
-
-  const clInfo = getTaskChecklistCount(task);
-  const checkHtml = task.isCompleted ? `<span class="task-check-circle" title="Completed">✓</span>` : ``;
 
   pill.innerHTML = `
     <div class="task-resize-handle resize-left" title="Drag to adjust start date"></div>
@@ -1032,7 +1089,15 @@ function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
   const descSnippet = task.desc ? `\n📝 ${task.desc.length > 80 ? task.desc.substring(0, 80) + '...' : task.desc}` : '';
   const labelText = getTaskPrimaryLabelName(task);
   const boldLabelHeader = labelText ? `${toUnicodeBold(labelText)}\n` : '';
-  pill.title = `${boldLabelHeader}${clInfo.text} ${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
+
+  let statusBadge = "";
+  if (isCompleted) {
+    statusBadge = " [100% Completed ✓]";
+  } else if (isOverdue) {
+    statusBadge = " [⚠️ Overdue]";
+  }
+
+  pill.title = `${boldLabelHeader}${clInfo.text} ${task.name}${statusBadge}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
 
   // Attach drag & resize interactivity
   setupTaskDragAndResize(pill, task);
@@ -1344,7 +1409,7 @@ function renderUnscheduledDrawer() {
         listName: task.list,
         labels: task.labels || [],
         checklists: task.checklists || [],
-        color: "yellow",
+        color: task.color || "blue",
         isNewScheduled: true
       });
     });
@@ -1622,7 +1687,7 @@ function openEditModal(task) {
   }
   startInput.value = task.startDate || "";
   dueInput.value = task.dueDate || "";
-  colorSelect.value = task.color || "yellow";
+  colorSelect.value = task.color || "blue";
 
   // Dynamic Modal Title & Save Button Text
   if (modalTitle) {
@@ -2238,7 +2303,7 @@ function bindUIEvents() {
         startDate: formatLocalDate(today),
         dueDate: formatLocalDate(tomorrow),
         rowId: defaultRowId,
-        color: "yellow",
+        color: "blue",
         checklists: [],
         isNewScheduled: true
       });
@@ -2406,7 +2471,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
   }
 
   // Auto-match task color if the label has a default color
-  let taskColor = "yellow";
+  let taskColor = "blue";
   if (currentViewMode === "label" && rowId) {
     const chosenLbl = currentBoardLabels.find(l => l.id === rowId);
     if (chosenLbl && chosenLbl.color) {
