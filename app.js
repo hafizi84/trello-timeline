@@ -279,6 +279,7 @@ async function fetchBoardData(boardId) {
         const holItem = {
           id: card.id,
           title: cleanTitle || "Public Holiday",
+          desc: card.desc || "",
           startDate: s || d,
           dueDate: d || s
         };
@@ -323,6 +324,7 @@ async function fetchBoardData(boardId) {
         unscheduledTasks.push({
           id: card.id,
           name: card.name,
+          desc: card.desc || "",
           list: listName || "To Do",
           listId: card.idList,
           labels: card.labels || []
@@ -382,6 +384,7 @@ async function fetchBoardData(boardId) {
         activeTasks.push({
           id: card.id,
           name: card.name,
+          desc: card.desc || "",
           rowId: labelId,
           startDate: sDate,
           dueDate: dDate,
@@ -429,6 +432,7 @@ async function fetchBoardData(boardId) {
         activeTasks.push({
           id: card.id,
           name: card.name,
+          desc: card.desc || "",
           rowId: lId,
           startDate: sDate,
           dueDate: dDate,
@@ -748,7 +752,8 @@ function createTaskPill(task, days) {
     </div>
     <div class="task-resize-handle resize-right" title="Drag to adjust due date (length)"></div>
   `;
-  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}\n💡 Drag bar to shift dates, drag edges to resize length`;
+  const descSnippet = task.desc ? `\n📝 ${task.desc.length > 80 ? task.desc.substring(0, 80) + '...' : task.desc}` : '';
+  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
 
   // Attach drag & resize interactivity
   setupTaskDragAndResize(pill, task);
@@ -1019,6 +1024,7 @@ function renderUnscheduledDrawer() {
       openEditModal({
         id: task.id,
         name: task.name,
+        desc: task.desc || "",
         startDate: formatLocalDate(today),
         dueDate: formatLocalDate(tomorrow),
         rowId: targetRowId,
@@ -1048,9 +1054,15 @@ function openEditModal(task) {
 
   const isNew = Boolean(task.isNewScheduled || (task.id && task.id.startsWith("custom_")) || (task.id && task.id.startsWith("new_")));
 
+  const descInput = document.getElementById("taskDesc");
+  const descLabel = document.getElementById("taskDescLabel");
+
   idInput.value = task.id;
   titleInput.value = task.name || "";
   titleInput.placeholder = isNew ? "Enter task name..." : "e.g. Website design";
+  if (descInput) {
+    descInput.value = task.desc || "";
+  }
   startInput.value = task.startDate || "";
   dueInput.value = task.dueDate || "";
   colorSelect.value = task.color || "yellow";
@@ -1084,6 +1096,8 @@ function openEditModal(task) {
       tabTypeTask?.classList.remove("active");
       if (taskNameLabel) taskNameLabel.textContent = "Holiday / Leave Title";
       titleInput.placeholder = "e.g. Deepavali, Malaysia Day, Annual Leave";
+      if (descLabel) descLabel.textContent = "Holiday Description / Notes";
+      if (descInput) descInput.placeholder = "e.g. Approved leave, replacement holiday, notes...";
       if (taskClassificationRow) taskClassificationRow.style.display = "none";
       if (modalTitle) modalTitle.textContent = isNew ? "Set Public Holiday / Leave" : "Edit Holiday / Leave";
       if (saveBtn) saveBtn.textContent = isNew ? "Save Holiday" : "Update Holiday";
@@ -1097,6 +1111,8 @@ function openEditModal(task) {
       tabTypeHoliday?.classList.remove("active");
       if (taskNameLabel) taskNameLabel.textContent = "Task Name";
       titleInput.placeholder = isNew ? "Enter task name..." : "e.g. Website design";
+      if (descLabel) descLabel.textContent = "Task Description";
+      if (descInput) descInput.placeholder = "Add detailed notes, links, or description...";
       if (taskClassificationRow) taskClassificationRow.style.display = "grid";
       if (modalTitle) modalTitle.textContent = isNew ? "New Task" : "Edit Task Details";
       if (saveBtn) saveBtn.textContent = isNew ? "Create & Sync to Trello" : "Save & Sync to Trello";
@@ -1272,6 +1288,7 @@ function bindUIEvents() {
     e.preventDefault();
     const id = document.getElementById("editCardId").value;
     const name = document.getElementById("taskName").value.trim() || "New Task";
+    const desc = document.getElementById("taskDesc") ? document.getElementById("taskDesc").value.trim() : "";
     let start = document.getElementById("taskStartDate").value;
     let due = document.getElementById("taskDueDate").value;
     const rowId = document.getElementById("taskAssignee").value;
@@ -1306,7 +1323,7 @@ function bindUIEvents() {
       if (isNew) {
         realHolidayId = `holiday_${Date.now()}`;
         try {
-          const postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(trelloCardTitle)}&start=${start}&due=${due}`;
+          const postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(trelloCardTitle)}&desc=${encodeURIComponent(desc)}&start=${start}&due=${due}`;
           const createRes = await fetch(postUrl, { method: "POST" });
           if (createRes.ok) {
             const createdCard = await createRes.json();
@@ -1317,7 +1334,7 @@ function bindUIEvents() {
         }
       } else {
         try {
-          const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(trelloCardTitle)}&start=${start}&due=${due}`;
+          const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(trelloCardTitle)}&desc=${encodeURIComponent(desc)}&start=${start}&due=${due}`;
           await fetch(putUrl, { method: "PUT" });
         } catch (err) {
           console.error("Failed to update holiday card on Trello:", err);
@@ -1327,6 +1344,7 @@ function bindUIEvents() {
       const holidayItem = {
         id: realHolidayId,
         title: holidayTitle,
+        desc: desc,
         startDate: start,
         dueDate: due
       };
@@ -1403,7 +1421,7 @@ function bindUIEvents() {
       let cardLabels = [];
 
       try {
-        let postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(name)}&start=${start}&due=${due}`;
+        let postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(name)}&desc=${encodeURIComponent(desc)}&start=${start}&due=${due}`;
         if (currentViewMode === "label" && rowId && rowId !== "no_label") {
           postUrl += `&idLabels=${rowId}`;
         }
@@ -1420,6 +1438,7 @@ function bindUIEvents() {
       activeTasks.push({
         id: realCardId,
         name: name,
+        desc: desc,
         startDate: start,
         dueDate: due,
         rowId: rowId,
@@ -1436,6 +1455,7 @@ function bindUIEvents() {
       const existingIndex = activeTasks.findIndex(t => t.id === id);
       if (existingIndex !== -1) {
         activeTasks[existingIndex].name = name;
+        activeTasks[existingIndex].desc = desc;
         activeTasks[existingIndex].startDate = start;
         activeTasks[existingIndex].dueDate = due;
         activeTasks[existingIndex].rowId = rowId;
@@ -1444,6 +1464,7 @@ function bindUIEvents() {
         activeTasks.push({
           id: id,
           name: name,
+          desc: desc,
           startDate: start,
           dueDate: due,
           rowId: rowId,
@@ -1456,7 +1477,7 @@ function bindUIEvents() {
 
       // Sync directly to Trello API
       try {
-        let putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(name)}&start=${start}&due=${due}`;
+        let putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(name)}&desc=${encodeURIComponent(desc)}&start=${start}&due=${due}`;
         if (currentViewMode === "label") {
           putUrl += `&idLabels=${rowId !== "no_label" ? rowId : ""}`;
         }
@@ -1549,6 +1570,7 @@ function bindUIEvents() {
       openEditModal({
         id: `custom_${Date.now()}`,
         name: "",
+        desc: "",
         startDate: formatLocalDate(today),
         dueDate: formatLocalDate(tomorrow),
         rowId: defaultRowId,
@@ -1610,6 +1632,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
     openEditModal({
       id: existingHoliday.id,
       name: existingHoliday.title,
+      desc: existingHoliday.desc || "",
       startDate: existingHoliday.startDate,
       dueDate: existingHoliday.dueDate || existingHoliday.startDate,
       rowId: "",
@@ -1647,6 +1670,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
   openEditModal({
     id: `custom_${Date.now()}`,
     name: "",
+    desc: "",
     startDate: formatLocalDate(startDate),
     dueDate: formatLocalDate(dueDate),
     rowId: rowId,

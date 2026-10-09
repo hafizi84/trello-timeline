@@ -1059,6 +1059,9 @@ body.is-dragging-task {
   border-radius: 14px;
   width: 94%;
   max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   border: 1px solid #E5E7EB;
@@ -1103,6 +1106,7 @@ body.is-dragging-task {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
 }
 
 /* Segmented Entry Type Selector (Task vs Holiday / Leave) */
@@ -1165,7 +1169,7 @@ body.is-dragging-task {
   color: #374151;
 }
 
-.form-group input, .form-group select {
+.form-group input, .form-group select, .form-group textarea {
   padding: 9px 12px;
   border: 1px solid #D1D5DB;
   border-radius: 8px;
@@ -1175,7 +1179,14 @@ body.is-dragging-task {
   transition: all 0.15s ease;
 }
 
-.form-group input:focus, .form-group select:focus {
+.form-group textarea {
+  resize: vertical;
+  min-height: 64px;
+  max-height: 160px;
+  line-height: 1.45;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--brand-blue);
   box-shadow: 0 0 0 3px rgba(0, 121, 191, 0.15);
 }
