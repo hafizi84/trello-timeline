@@ -181,6 +181,56 @@ function getLabelHexColor(colorName) {
   return map[colorName] || "#0079BF";
 }
 
+// Convert plain text to Unicode Mathematical Sans-Serif Bold characters for native tooltips
+function toUnicodeBold(str) {
+  if (!str) return "";
+  return str.split("").map(c => {
+    const code = c.charCodeAt(0);
+    // A-Z: 0x41-0x5A -> 0x1D5D4-0x1D5ED
+    if (code >= 65 && code <= 90) return String.fromCodePoint(0x1D5D4 + code - 65);
+    // a-z: 0x61-0x7A -> 0x1D5EE-0x1D607
+    if (code >= 97 && code <= 122) return String.fromCodePoint(0x1D5EE + code - 97);
+    // 0-9: 0x30-0x39 -> 0x1D7EC-0x1D7F5
+    if (code >= 48 && code <= 57) return String.fromCodePoint(0x1D7EC + code - 48);
+    return c;
+  }).join("");
+}
+
+// Extract primary label display name for a task
+function getTaskPrimaryLabelName(task) {
+  if (!task) return "";
+
+  // 1. Check attached task.labels array
+  if (task.labels && task.labels.length > 0) {
+    const names = task.labels.map(l => {
+      if (l.name && l.name.trim()) return l.name.trim();
+      if (l.color) {
+        const found = currentBoardLabels.find(b => b.id === l.id || (b.color === l.color && b.name && !b.name.includes("Label")));
+        if (found && found.name) return found.name;
+        return l.color.charAt(0).toUpperCase() + l.color.slice(1) + " Label";
+      }
+      return "";
+    }).filter(Boolean);
+    if (names.length > 0) return names.join(" • ");
+  }
+
+  // 2. Check task.labelId
+  if (task.labelId && task.labelId !== "no_label") {
+    const found = currentBoardLabels.find(b => b.id === task.labelId);
+    if (found && found.name) return found.name;
+    const row = activeRows.find(r => r.id === task.labelId);
+    if (row && row.name) return row.name;
+  }
+
+  // 3. Check task.rowId when in label view mode
+  if (currentViewMode === "label" && task.rowId && task.rowId !== "no_label") {
+    const row = activeRows.find(r => r.id === task.rowId);
+    if (row && row.name && row.isLabel) return row.name;
+  }
+
+  return "General / No Label";
+}
+
 // ==========================================================================
 // Initialization
 // ==========================================================================
@@ -941,7 +991,9 @@ function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
     <div class="task-resize-handle resize-right" title="Drag to adjust due date (length)"></div>
   `;
   const descSnippet = task.desc ? `\n📝 ${task.desc.length > 80 ? task.desc.substring(0, 80) + '...' : task.desc}` : '';
-  pill.title = `${clInfo.text} ${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
+  const labelText = getTaskPrimaryLabelName(task);
+  const boldLabelHeader = labelText ? `${toUnicodeBold(labelText)}\n` : '';
+  pill.title = `${boldLabelHeader}${clInfo.text} ${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}${descSnippet}\n💡 Drag bar to shift dates, drag edges to resize length`;
 
   // Attach drag & resize interactivity
   setupTaskDragAndResize(pill, task);
@@ -1014,7 +1066,9 @@ function setupTaskDragAndResize(pill, task) {
 
       pill.style.left = `${initialLeft + deltaX}px`;
       const diffSign = deltaDays > 0 ? `+${deltaDays}` : `${deltaDays}`;
-      tooltip.innerHTML = `<strong>${task.name}</strong><br>📅 ${formatShortDate(currentStart)} – ${formatShortDate(currentDue)} (${deltaDays !== 0 ? diffSign + 'd' : 'No change'})`;
+      const dragLabel = getTaskPrimaryLabelName(task);
+      const labelPrefix = dragLabel ? `<span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.85; font-weight:700;">${dragLabel}</span><br>` : '';
+      tooltip.innerHTML = `${labelPrefix}<strong>${task.name}</strong><br>📅 ${formatShortDate(currentStart)} – ${formatShortDate(currentDue)} (${deltaDays !== 0 ? diffSign + 'd' : 'No change'})`;
     } else if (dragMode === "resize-left") {
       currentStart = new Date(origStartDate);
       currentStart.setDate(currentStart.getDate() + deltaDays);
@@ -1216,6 +1270,9 @@ function renderUnscheduledDrawer() {
     const clInfo = getTaskChecklistCount(task);
     const card = document.createElement("div");
     card.className = "unscheduled-card-item";
+    const uLabel = getTaskPrimaryLabelName(task);
+    const uLabelHeader = uLabel ? `${toUnicodeBold(uLabel)}\n` : '';
+    card.title = `${uLabelHeader}${clInfo.text} ${task.name}\nList: ${task.list}\n💡 Click to schedule this task`;
     card.innerHTML = `
       <div class="unscheduled-card-title"><span class="task-pill-checklist-badge">${clInfo.text}</span>${task.name}</div>
       <span class="unscheduled-card-list">${task.list}</span>
