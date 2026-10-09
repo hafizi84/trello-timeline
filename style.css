@@ -423,17 +423,18 @@ body {
 
 /* Sidebar Row Cell (Matches screenshot exact layout: Avatar + Name) */
 .sidebar-row-cell {
-  min-height: 56px;
+  min-height: 76px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 8px 6px;
+  gap: 4px;
+  padding: 6px 8px;
   background-color: #FFFFFF;
   transition: background-color 0.15s ease, height 0.2s ease;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .sidebar-row-cell:hover {
@@ -466,23 +467,38 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2px;
+  margin-bottom: 0px;
   flex-shrink: 0;
 }
 
 .sidebar-label-tag svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   color: #FFFFFF;
 }
 
 .sidebar-row-cell.is-label-row .sidebar-name {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
+  color: #1F2937;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.sidebar-name {
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #374151;
   text-align: center;
   line-height: 1.25;
@@ -492,17 +508,7 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   max-width: 100%;
-}
-
-.sidebar-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #4B5563;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  word-break: break-word;
 }
 
 /* Milestone Cell (Top row in screenshot) */

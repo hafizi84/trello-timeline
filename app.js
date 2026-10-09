@@ -618,14 +618,16 @@ function renderTimeline() {
   // Position vertical red indicator line based on current time (9:00 AM - 6:00 PM)
   updateTodayMarkerPosition();
 
-  const PILL_HEIGHT = 32;
-  const TRACK_GAP = 8;
-  const ROW_PADDING_Y = 12;
+  const PILL_HEIGHT = 30;
+  const TRACK_GAP = 7;
+  const ROW_PADDING_Y = 10;
+  const MIN_ROW_HEIGHT = 76;
 
   // 3. Render Left Sidebar Rows
   activeRows.forEach(row => {
     const trackCount = Math.max(1, row.trackCount || 1);
-    const rowHeight = (ROW_PADDING_Y * 2) + (trackCount * PILL_HEIGHT) + ((trackCount - 1) * TRACK_GAP);
+    const contentHeight = (ROW_PADDING_Y * 2) + (trackCount * PILL_HEIGHT) + ((trackCount - 1) * TRACK_GAP);
+    const rowHeight = Math.max(MIN_ROW_HEIGHT, contentHeight);
 
     const rowEl = document.createElement("div");
     rowEl.className = `sidebar-row-cell ${row.isLabel ? "is-label-row" : ""} ${row.isMilestone ? "is-milestone-row" : ""}`;
@@ -709,7 +711,7 @@ function renderTimeline() {
     // Append Task Pills for this row
     const rowTasks = activeTasks.filter(t => t.rowId === row.id);
     rowTasks.forEach(task => {
-      const pill = createTaskPill(task, days);
+      const pill = createTaskPill(task, days, rowHeight, trackCount);
       if (pill) gridRow.appendChild(pill);
     });
 
@@ -781,7 +783,7 @@ function updateTodayMarkerPosition() {
 }
 
 // Create a single Task Pill with Drag & Resize controllers
-function createTaskPill(task, days) {
+function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
   const colWidth = zoomMode === "days" ? 140 : 100;
   const startDate = new Date(task.startDate + "T00:00:00");
   const dueDate = new Date(task.dueDate + "T00:00:00");
@@ -797,10 +799,16 @@ function createTaskPill(task, days) {
   const leftPx = startOffset * colWidth + 8;
   const widthPx = spanDays * colWidth - 16;
 
-  const PILL_HEIGHT = 32;
-  const TRACK_GAP = 8;
-  const ROW_PADDING_Y = 12;
-  const topPx = ROW_PADDING_Y + (task.track || 0) * (PILL_HEIGHT + TRACK_GAP);
+  const PILL_HEIGHT = 30;
+  const TRACK_GAP = 7;
+  const ROW_PADDING_Y = 10;
+
+  let topPx = 0;
+  if (trackCount === 1) {
+    topPx = Math.max(ROW_PADDING_Y, Math.round((rowHeight - PILL_HEIGHT) / 2));
+  } else {
+    topPx = ROW_PADDING_Y + (task.track || 0) * (PILL_HEIGHT + TRACK_GAP);
+  }
 
   const pill = document.createElement("div");
   pill.id = `task-pill-${task.id}`;
