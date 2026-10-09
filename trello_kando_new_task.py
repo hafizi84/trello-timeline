@@ -4,53 +4,57 @@ import time
 import json
 import urllib.parse
 import ctypes
-import tkinter as tk
+from ctypes import wintypes
 import subprocess
 
-def grab_highlighted_text():
-    """Simulate Ctrl+C to copy highlighted text from the active foreground window"""
-    user32 = ctypes.windll.user32
+# Setup Win32 clipboard functions with 64-bit pointer safety
+user32 = ctypes.windll.user32
+kernel32 = ctypes.windll.kernel32
+
+user32.OpenClipboard.argtypes = [wintypes.HWND]
+user32.OpenClipboard.restype = wintypes.BOOL
+
+user32.CloseClipboard.argtypes = []
+user32.CloseClipboard.restype = wintypes.BOOL
+
+user32.GetClipboardData.argtypes = [wintypes.UINT]
+user32.GetClipboardData.restype = wintypes.HANDLE
+
+kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+kernel32.GlobalLock.restype = ctypes.c_void_p
+
+kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+kernel32.GlobalUnlock.restype = wintypes.BOOL
+
+def read_clipboard_text():
+    """Read text from Windows clipboard with 64-bit memory pointer safety"""
+    CF_UNICODETEXT = 13
     
-    # Pause to let Kando close and restore focus to the previous active window
-    time.sleep(0.25)
-    
-    # Clear clipboard first so stale text is not grabbed if nothing was highlighted
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        root.clipboard_clear()
-        root.destroy()
-    except Exception:
-        pass
+    # Try multiple times to give the OS and previous app time to process Ctrl+C
+    for _ in range(8):
+        if user32.OpenClipboard(None):
+            try:
+                handle = user32.GetClipboardData(CF_UNICODETEXT)
+                if handle:
+                    ptr = kernel32.GlobalLock(handle)
+                    if ptr:
+                        try:
+                            val = ctypes.wstring_at(ptr)
+                            if val:
+                                return val
+                        finally:
+                            kernel32.GlobalUnlock(handle)
+            finally:
+                user32.CloseClipboard()
+        time.sleep(0.04)
         
-    time.sleep(0.05)
-    
-    # VK_CONTROL = 0x11, VK_C = 0x43, KEYEVENTF_KEYUP = 0x0002
-    user32.keybd_event(0x11, 0, 0, 0)
-    user32.keybd_event(0x43, 0, 0, 0)
-    user32.keybd_event(0x43, 0, 2, 0)
-    user32.keybd_event(0x11, 0, 2, 0)
-    
-    time.sleep(0.18)
-    
-    # Read clipboard using Tkinter
-    root = tk.Tk()
-    root.withdraw()
-    text = ""
-    try:
-        text = root.clipboard_get()
-    except Exception:
-        pass
-    finally:
-        try:
-            root.destroy()
-        except Exception:
-            pass
-            
-    return text.strip()
+    return ""
 
 def main():
-    selected_text = grab_highlighted_text()
+    # Wait briefly for Kando's simulate-hotkey (ControlLeft+KeyC) to finish writing to clipboard
+    time.sleep(0.12)
+    
+    selected_text = read_clipboard_text().strip()
     
     title = ""
     desc = ""
@@ -67,8 +71,19 @@ def main():
     payload = json.dumps({"title": title, "desc": desc})
     encoded = urllib.parse.quote(payload)
     
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(script_dir, "quick_task.html")
+    # Resolve quick_task.html location
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "quick_task.html"),
+        r"C:\Users\Surface Laptop Go\AppData\Roaming\kando\scripts\quick_task.html",
+        r"c:\Users\Surface Laptop Go\OneDrive - YCP Holdings\Documents\All Clients Websites\CMIC\trello-timeline\quick_task.html"
+    ]
+    
+    html_path = candidates[0]
+    for c in candidates:
+        if os.path.exists(c):
+            html_path = c
+            break
+            
     file_url = "file:///" + html_path.replace("\\", "/") + f"?data={encoded}"
     
     # Locate Microsoft Edge
@@ -83,13 +98,25 @@ def main():
             edge_exe = p
             break
             
+    user_data = os.path.join(os.environ.get("TEMP", r"C:\temp"), "trello_edge_app_profile")
+    
     cmd = [
         edge_exe,
         f"--app={file_url}",
-        "--window-size=920,680"
+        f"--user-data-dir={user_data}",
+        "--window-size=920,680",
+        "--no-first-run",
+        "--no-default-browser-check"
     ]
     
-    subprocess.Popen(cmd)
+    DETACHED_PROCESS = 0x00000008
+    CREATE_NEW_PROCESS_GROUP = 0x00000200
+    
+    subprocess.Popen(
+        cmd,
+        creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        close_fds=True
+    )
 
 if __name__ == "__main__":
     main()

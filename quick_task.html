@@ -321,8 +321,32 @@
 
       setTimeout(() => {
         taskNameInput.focus();
-        if (title) taskNameInput.select();
+        if (taskNameInput.value) {
+          taskNameInput.setSelectionRange(taskNameInput.value.length, taskNameInput.value.length);
+        }
       }, 100);
+
+      // Double safety fallback: If title was empty from URL, check clipboard
+      if (!title) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(clipText => {
+              if (clipText && clipText.trim() && !taskNameInput.value) {
+                const lines = clipText.trim().split("\n").map(l => l.trim()).filter(Boolean);
+                if (lines.length === 1) {
+                  taskNameInput.value = lines[0];
+                } else if (lines.length > 1) {
+                  taskNameInput.value = lines[0];
+                  if (!taskDescInput.value) {
+                    taskDescInput.value = lines.slice(1).join("\n");
+                  }
+                }
+                taskNameInput.setSelectionRange(taskNameInput.value.length, taskNameInput.value.length);
+              }
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      }
     }
 
     // Load Board Lists & Labels from Trello API
