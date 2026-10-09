@@ -615,9 +615,6 @@ function renderTimeline() {
     headerRow.appendChild(dayCol);
   });
 
-  // Position vertical red indicator line based on current time (9:00 AM - 6:00 PM)
-  updateTodayMarkerPosition();
-
   const PILL_HEIGHT = 30;
   const TRACK_GAP = 7;
   const ROW_PADDING_Y = 10;
@@ -718,7 +715,13 @@ function renderTimeline() {
     gridBody.appendChild(gridRow);
   });
 
-  setTimeout(drawDependencyCurves, 50);
+  // Position vertical red indicator line based on current time across all rows
+  updateTodayMarkerPosition();
+
+  setTimeout(() => {
+    drawDependencyCurves();
+    updateTodayMarkerPosition();
+  }, 50);
 }
 
 // ==========================================================================
@@ -773,10 +776,13 @@ function updateTodayMarkerPosition() {
   const xPos = todayColIndex * colWidth + offsetInCol;
   todayMarker.style.display = "block";
   todayMarker.style.left = `${xPos}px`;
+
   const gridBody = document.getElementById("timelineGridBody");
-  if (gridBody) {
-    todayMarker.style.height = `${gridBody.offsetHeight}px`;
-  }
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  const bodyH = gridBody ? Math.max(gridBody.scrollHeight, gridBody.offsetHeight) : 0;
+  const containerH = scrollContainer ? Math.max(scrollContainer.scrollHeight - 48, scrollContainer.clientHeight - 48) : 0;
+  const markerHeight = Math.max(bodyH, containerH, 300);
+  todayMarker.style.height = `${markerHeight}px`;
 
   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   todayMarker.title = `Current Time: ${timeStr} • Date: ${formatDateDDMMYYYY(now)} (Today's Working Hours: 9:00 AM – 6:00 PM)`;
@@ -2094,7 +2100,10 @@ function bindUIEvents() {
   }
 
   document.getElementById("timelineScrollContainer").addEventListener("scroll", drawDependencyCurves);
-  window.addEventListener("resize", drawDependencyCurves);
+  window.addEventListener("resize", () => {
+    drawDependencyCurves();
+    updateTodayMarkerPosition();
+  });
 }
 
 // ==========================================================================

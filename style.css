@@ -620,6 +620,7 @@ body {
   position: absolute;
   top: 48px;
   bottom: 0;
+  min-height: calc(100% - 48px);
   width: 2px;
   background-color: var(--today-line-color);
   z-index: 15;
