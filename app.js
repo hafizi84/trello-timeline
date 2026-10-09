@@ -17,10 +17,15 @@ const urlParams = new URLSearchParams(window.location.search);
 let currentBoardId = urlParams.get("boardId") || urlParams.get("board") || DEFAULT_BOARD_ID;
 let currentViewMode = "label"; // Default to 'label' as requested
 let zoomMode = "days"; // 'days' | 'weeks'
-let totalVisibleDays = 9;
+const PAST_BUFFER_DAYS = 25;
+const FUTURE_BUFFER_DAYS = 65;
+let totalVisibleDays = PAST_BUFFER_DAYS + FUTURE_BUFFER_DAYS; // 90 continuous days
 
 // Today & Date Calculations
-let viewStartDate = getCenteredDate(new Date(), -2); // Center on Today (2 days before today)
+let viewStartDate = getCenteredDate(new Date(), -PAST_BUFFER_DAYS); // Buffer starting 25 days before today
+let timelineDays = [];
+let isInitialTimelineLoad = true;
+let isBufferExpanding = false;
 let activeTasks = [];
 let activeRows = [];
 let unscheduledTasks = [];
@@ -542,9 +547,10 @@ async function fetchBoardData(boardId) {
 
     // Always center view on Today
     const today = new Date();
-    viewStartDate = getCenteredDate(today, -2);
+    viewStartDate = getCenteredDate(today, -PAST_BUFFER_DAYS);
+    totalVisibleDays = PAST_BUFFER_DAYS + FUTURE_BUFFER_DAYS;
 
-    renderTimeline();
+    renderTimeline(true);
     renderUnscheduledDrawer();
 
     syncStatus.innerHTML = `<span class="status-dot"></span><span class="status-text">Connected</span>`;
@@ -557,7 +563,7 @@ async function fetchBoardData(boardId) {
 // ==========================================================================
 // Rendering Engine
 // ==========================================================================
-function renderTimeline() {
+function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
   computeTaskTracks(); // Ensure tracks and row track counts are fresh
 
   const sidebarRows = document.getElementById("sidebarRows");
@@ -565,6 +571,9 @@ function renderTimeline() {
   const gridBody = document.getElementById("timelineGridBody");
   const dateRangeLabel = document.getElementById("currentDateRange");
   const todayMarker = document.getElementById("todayMarkerLine");
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+
+  const preservedScrollLeft = overrideScrollLeft !== null ? overrideScrollLeft : (scrollContainer ? scrollContainer.scrollLeft : 0);
 
   sidebarRows.innerHTML = "";
   headerRow.innerHTML = "";
@@ -577,6 +586,7 @@ function renderTimeline() {
     days.push(new Date(curr));
     curr.setDate(curr.getDate() + 1);
   }
+  timelineDays = days;
 
   // Update Range Label
   const startMonth = days[0].toLocaleString("default", { month: "long", year: "numeric" });
@@ -718,10 +728,105 @@ function renderTimeline() {
   // Position vertical red indicator line based on current time across all rows
   updateTodayMarkerPosition();
 
+  if (shouldCenterToday || isInitialTimelineLoad) {
+    isInitialTimelineLoad = false;
+    scrollToToday(false);
+  } else if (scrollContainer && preservedScrollLeft > 0) {
+    scrollContainer.scrollLeft = preservedScrollLeft;
+  }
+
+  updateDateRangeLabelFromScroll();
+
   setTimeout(() => {
     drawDependencyCurves();
     updateTodayMarkerPosition();
+    updateDateRangeLabelFromScroll();
   }, 50);
+}
+
+// Smoothly scrolls timeline view to center on Today's date column
+function scrollToToday(smooth = true) {
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  if (!scrollContainer) return;
+
+  const colWidth = zoomMode === "days" ? 140 : 100;
+  const todayStr = formatLocalDate(new Date());
+
+  let todayIdx = -1;
+  for (let i = 0; i < timelineDays.length; i++) {
+    if (formatLocalDate(timelineDays[i]) === todayStr) {
+      todayIdx = i;
+      break;
+    }
+  }
+
+  if (todayIdx !== -1) {
+    const todayPx = todayIdx * colWidth + (colWidth / 2);
+    const targetScroll = Math.max(0, todayPx - (scrollContainer.clientWidth / 2));
+    if (smooth) {
+      scrollContainer.scrollTo({ left: targetScroll, behavior: "smooth" });
+    } else {
+      scrollContainer.scrollLeft = targetScroll;
+    }
+    setTimeout(updateDateRangeLabelFromScroll, 50);
+  } else {
+    viewStartDate = getCenteredDate(new Date(), -PAST_BUFFER_DAYS);
+    totalVisibleDays = PAST_BUFFER_DAYS + FUTURE_BUFFER_DAYS;
+    renderTimeline(true);
+  }
+}
+
+// Dynamically updates the month & year header display (e.g. "October 2026") based on center of view
+function updateDateRangeLabelFromScroll() {
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  const dateRangeLabel = document.getElementById("currentDateRange");
+  if (!scrollContainer || !dateRangeLabel || !timelineDays || timelineDays.length === 0) return;
+
+  const colWidth = zoomMode === "days" ? 140 : 100;
+  const centerPx = scrollContainer.scrollLeft + (scrollContainer.clientWidth / 2);
+  const colIndex = Math.max(0, Math.min(timelineDays.length - 1, Math.floor(centerPx / colWidth)));
+  const centerDate = timelineDays[colIndex];
+  if (centerDate) {
+    dateRangeLabel.textContent = centerDate.toLocaleString("default", { month: "long", year: "numeric" });
+  }
+}
+
+// Seamlessly expands the timeline date buffer when the user scrolls near either end
+function checkAndExpandDateBuffer() {
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  if (!scrollContainer || isBufferExpanding) return;
+
+  const colWidth = zoomMode === "days" ? 140 : 100;
+
+  // Near left edge (past dates): prepend 21 days
+  if (scrollContainer.scrollLeft < 350) {
+    isBufferExpanding = true;
+    const addDays = 21;
+    viewStartDate.setDate(viewStartDate.getDate() - addDays);
+    totalVisibleDays += addDays;
+
+    const addedWidth = addDays * colWidth;
+    const oldScrollLeft = scrollContainer.scrollLeft;
+
+    renderTimeline(false, oldScrollLeft + addedWidth);
+
+    setTimeout(() => { isBufferExpanding = false; }, 100);
+    return;
+  }
+
+  // Near right edge (future dates): append 21 days
+  const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+  if (scrollContainer.scrollLeft > maxScroll - 350) {
+    isBufferExpanding = true;
+    const addDays = 21;
+    totalVisibleDays += addDays;
+
+    const oldScrollLeft = scrollContainer.scrollLeft;
+    renderTimeline(false, oldScrollLeft);
+
+    setTimeout(() => { isBufferExpanding = false; }, 100);
+    return;
+  }
 }
 
 // ==========================================================================
@@ -1055,7 +1160,14 @@ function computeTaskTracks() {
 // Draw smooth SVG Bezier curves
 function drawDependencyCurves() {
   const svg = document.getElementById("dependencySvgLayer");
+  if (!svg) return;
   svg.innerHTML = "";
+
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  if (scrollContainer) {
+    svg.style.width = `${scrollContainer.scrollWidth}px`;
+    svg.style.height = `${scrollContainer.scrollHeight}px`;
+  }
 
   dependencies.forEach(dep => {
     const fromEl = document.getElementById(`task-pill-${dep.from}`);
@@ -1617,19 +1729,23 @@ function bindUIEvents() {
   });
 
   document.getElementById("prevBtn").addEventListener("click", () => {
-    viewStartDate.setDate(viewStartDate.getDate() - 7);
-    renderTimeline();
+    const scrollContainer = document.getElementById("timelineScrollContainer");
+    const colWidth = zoomMode === "days" ? 140 : 100;
+    if (scrollContainer) {
+      scrollContainer.scrollBy({ left: -(colWidth * 7), behavior: "smooth" });
+    }
   });
 
   document.getElementById("nextBtn").addEventListener("click", () => {
-    viewStartDate.setDate(viewStartDate.getDate() + 7);
-    renderTimeline();
+    const scrollContainer = document.getElementById("timelineScrollContainer");
+    const colWidth = zoomMode === "days" ? 140 : 100;
+    if (scrollContainer) {
+      scrollContainer.scrollBy({ left: colWidth * 7, behavior: "smooth" });
+    }
   });
 
   document.getElementById("todayBtn").addEventListener("click", () => {
-    const today = new Date();
-    viewStartDate = getCenteredDate(today, -2);
-    renderTimeline();
+    scrollToToday(true);
   });
 
   const zoomBtns = document.querySelectorAll(".zoom-btn");
@@ -1638,9 +1754,8 @@ function bindUIEvents() {
       zoomBtns.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       zoomMode = btn.dataset.zoom;
-      totalVisibleDays = zoomMode === "days" ? 9 : 14;
       document.documentElement.style.setProperty("--col-day-width", zoomMode === "days" ? "140px" : "100px");
-      renderTimeline();
+      renderTimeline(true);
     });
   });
 
@@ -2099,10 +2214,50 @@ function bindUIEvents() {
     });
   }
 
-  document.getElementById("timelineScrollContainer").addEventListener("scroll", drawDependencyCurves);
+  const scrollContainer = document.getElementById("timelineScrollContainer");
+  if (scrollContainer) {
+    // Enable mouse wheel scrolling left & right across dates
+    scrollContainer.addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.metaKey) return; // Allow browser zoom
+      if (e.altKey) return; // Allow vertical scroll if Alt is held
+
+      let delta = 0;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 1) {
+        delta = e.deltaX; // Native horizontal trackpad swipe
+      } else if (Math.abs(e.deltaY) > 1) {
+        delta = e.deltaY; // Vertical mouse wheel converted to horizontal timeline scrolling!
+      }
+
+      if (delta !== 0) {
+        e.preventDefault();
+        scrollContainer.scrollLeft += delta;
+        updateDateRangeLabelFromScroll();
+        checkAndExpandDateBuffer();
+      }
+    }, { passive: false });
+
+    scrollContainer.addEventListener("scroll", () => {
+      drawDependencyCurves();
+      updateDateRangeLabelFromScroll();
+      checkAndExpandDateBuffer();
+      if (sidebarRows && sidebarRows.scrollTop !== scrollContainer.scrollTop) {
+        sidebarRows.scrollTop = scrollContainer.scrollTop;
+      }
+    });
+
+    if (sidebarRows) {
+      sidebarRows.addEventListener("scroll", () => {
+        if (scrollContainer.scrollTop !== sidebarRows.scrollTop) {
+          scrollContainer.scrollTop = sidebarRows.scrollTop;
+        }
+      });
+    }
+  }
+
   window.addEventListener("resize", () => {
     drawDependencyCurves();
     updateTodayMarkerPosition();
+    updateDateRangeLabelFromScroll();
   });
 }
 
@@ -2202,9 +2357,12 @@ function jumpToRowTask(rowId) {
 
   const targetDate = new Date(targetDateStr + "T00:00:00");
 
-  // Center timeline on this task (-2 days offset so task appears comfortably in view)
-  viewStartDate = getCenteredDate(targetDate, -2);
-  renderTimeline();
+  const pillElCheck = document.getElementById(`task-pill-${targetTask.id}`);
+  if (!pillElCheck) {
+    viewStartDate = getCenteredDate(targetDate, -PAST_BUFFER_DAYS);
+    totalVisibleDays = PAST_BUFFER_DAYS + FUTURE_BUFFER_DAYS;
+    renderTimeline(false);
+  }
 
   // Visual feedback on the double-clicked row cell
   const clickedRowEl = document.querySelector(`.sidebar-row-cell[data-row-id="${rowId}"]`);
