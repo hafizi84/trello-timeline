@@ -159,6 +159,11 @@ async function fetchBoardData(boardId) {
       const listObj = lists.find(l => l.id === card.idList);
       const listName = listObj ? listObj.name : "";
 
+      // Exclude cards marked completed or inside completed lists from the active timeline view
+      if (card.dueComplete === true || (listName && listName.toLowerCase().includes("completed"))) {
+        return;
+      }
+
       const start = card.start ? card.start.split("T")[0] : null;
       const due = card.due ? card.due.split("T")[0] : null;
 
@@ -497,7 +502,7 @@ function renderTimeline() {
   setTimeout(drawDependencyCurves, 50);
 }
 
-// Create a single Task Pill
+// Create a single Task Pill with Drag & Resize controllers
 function createTaskPill(task, days) {
   const colWidth = zoomMode === "days" ? 140 : 100;
   const startDate = new Date(task.startDate + "T00:00:00");
@@ -518,15 +523,178 @@ function createTaskPill(task, days) {
   pill.id = `task-pill-${task.id}`;
   pill.className = `task-pill color-${task.color || 'yellow'} track-${task.track || 0} ${task.isCompleted ? 'is-completed' : ''}`;
   pill.style.left = `${leftPx}px`;
-  pill.style.width = `${Math.max(100, widthPx)}px`;
+  pill.style.width = `${Math.max(80, widthPx)}px`;
+  pill.dataset.taskId = task.id;
 
   const checkHtml = task.isCompleted ? `<span class="task-check-circle" title="Completed">✓</span>` : ``;
-  pill.innerHTML = `${checkHtml}<span>${task.name}</span>`;
-  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${task.startDate} to ${task.dueDate}`;
 
-  pill.addEventListener("click", () => openEditModal(task));
+  pill.innerHTML = `
+    <div class="task-resize-handle resize-left" title="Drag to adjust start date"></div>
+    <div class="task-pill-inner">
+      ${checkHtml}<span class="task-pill-title">${task.name}</span>
+    </div>
+    <div class="task-resize-handle resize-right" title="Drag to adjust due date (length)"></div>
+  `;
+  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${task.startDate} to ${task.dueDate}\n💡 Drag bar to shift dates, drag edges to resize length`;
+
+  // Attach drag & resize interactivity
+  setupTaskDragAndResize(pill, task);
 
   return pill;
+}
+
+// ==========================================================================
+// Gantt Drag & Drop and Edge Resizing Controller
+// Enables shifting task bar dates and resizing start/due dates with live feedback
+// ==========================================================================
+function setupTaskDragAndResize(pill, task) {
+  let isDragging = false;
+  let dragMode = "move"; // 'move' | 'resize-left' | 'resize-right'
+  let startX = 0;
+  let initialLeft = 0;
+  let initialWidth = 0;
+  let colWidth = zoomMode === "days" ? 140 : 100;
+
+  const origStartDate = new Date(task.startDate + "T00:00:00");
+  const origDueDate = new Date(task.dueDate + "T00:00:00");
+
+  let currentStart = new Date(origStartDate);
+  let currentDue = new Date(origDueDate);
+
+  const tooltip = getOrCreateDragTooltip();
+
+  function onMouseDown(e) {
+    if (e.button !== 0) return; // Left mouse button only
+
+    colWidth = zoomMode === "days" ? 140 : 100;
+    startX = e.clientX;
+    initialLeft = parseFloat(pill.style.left) || 0;
+    initialWidth = parseFloat(pill.style.width) || 80;
+
+    if (e.target.classList.contains("resize-left")) {
+      dragMode = "resize-left";
+    } else if (e.target.classList.contains("resize-right")) {
+      dragMode = "resize-right";
+    } else {
+      dragMode = "move";
+    }
+
+    isDragging = false;
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    e.preventDefault();
+  }
+
+  function onMouseMove(e) {
+    const deltaX = e.clientX - startX;
+
+    if (!isDragging && Math.abs(deltaX) > 4) {
+      isDragging = true;
+      pill.classList.add("is-dragging");
+      document.body.classList.add("is-dragging-task");
+      tooltip.style.display = "block";
+    }
+
+    if (!isDragging) return;
+
+    const deltaDays = Math.round(deltaX / colWidth);
+
+    if (dragMode === "move") {
+      currentStart = new Date(origStartDate);
+      currentStart.setDate(currentStart.getDate() + deltaDays);
+      currentDue = new Date(origDueDate);
+      currentDue.setDate(currentDue.getDate() + deltaDays);
+
+      pill.style.left = `${initialLeft + deltaX}px`;
+      const diffSign = deltaDays > 0 ? `+${deltaDays}` : `${deltaDays}`;
+      tooltip.innerHTML = `<strong>${task.name}</strong><br>📅 ${formatShortDate(currentStart)} – ${formatShortDate(currentDue)} (${deltaDays !== 0 ? diffSign + 'd' : 'No change'})`;
+    } else if (dragMode === "resize-left") {
+      currentStart = new Date(origStartDate);
+      currentStart.setDate(currentStart.getDate() + deltaDays);
+      if (currentStart > origDueDate) currentStart = new Date(origDueDate);
+
+      const actualDeltaDays = Math.round((currentStart - origStartDate) / (1000 * 60 * 60 * 24));
+      const newLeft = initialLeft + actualDeltaDays * colWidth;
+      const newWidth = Math.max(colWidth - 16, initialWidth - actualDeltaDays * colWidth);
+
+      pill.style.left = `${newLeft}px`;
+      pill.style.width = `${newWidth}px`;
+
+      const daysSpan = Math.round((origDueDate - currentStart) / (1000 * 60 * 60 * 24)) + 1;
+      tooltip.innerHTML = `<strong>Adjust Start Date</strong><br>📅 Start: ${formatShortDate(currentStart)} | Length: ${daysSpan} day${daysSpan === 1 ? '' : 's'}`;
+    } else if (dragMode === "resize-right") {
+      currentDue = new Date(origDueDate);
+      currentDue.setDate(currentDue.getDate() + deltaDays);
+      if (currentDue < origStartDate) currentDue = new Date(origStartDate);
+
+      const actualDeltaDays = Math.round((currentDue - origDueDate) / (1000 * 60 * 60 * 24));
+      const newWidth = Math.max(colWidth - 16, initialWidth + actualDeltaDays * colWidth);
+
+      pill.style.width = `${newWidth}px`;
+
+      const daysSpan = Math.round((currentDue - origStartDate) / (1000 * 60 * 60 * 24)) + 1;
+      tooltip.innerHTML = `<strong>Adjust Due Date</strong><br>📅 Due: ${formatShortDate(currentDue)} | Length: ${daysSpan} day${daysSpan === 1 ? '' : 's'}`;
+    }
+
+    // Position tooltip right above mouse cursor
+    tooltip.style.left = `${e.clientX}px`;
+    tooltip.style.top = `${e.clientY - 14}px`;
+  }
+
+  function onMouseUp(e) {
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+
+    pill.classList.remove("is-dragging");
+    document.body.classList.remove("is-dragging-task");
+    tooltip.style.display = "none";
+
+    if (!isDragging) {
+      // Just a click: open task details modal
+      openEditModal(task);
+      return;
+    }
+
+    const newStartStr = formatLocalDate(currentStart);
+    const newDueStr = formatLocalDate(currentDue);
+
+    const changed = (newStartStr !== task.startDate) || (newDueStr !== task.dueDate);
+    if (changed) {
+      task.startDate = newStartStr;
+      task.dueDate = newDueStr;
+
+      // Update Trello card via REST API in background
+      if (!task.id.startsWith("custom_")) {
+        const putUrl = `https://api.trello.com/1/cards/${task.id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&start=${newStartStr}&due=${newDueStr}`;
+        fetch(putUrl, { method: "PUT" }).catch(err => console.error("Failed to update card dates on Trello:", err));
+      }
+
+      computeTaskTracks();
+      renderTimeline();
+      showNavToast(`📅 Updated "${task.name}": ${newStartStr} to ${newDueStr}`);
+    } else {
+      // Snap back if no day change
+      renderTimeline();
+    }
+  }
+
+  pill.addEventListener("mousedown", onMouseDown);
+}
+
+function formatShortDate(d) {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function getOrCreateDragTooltip() {
+  let el = document.getElementById("taskDragTooltip");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "taskDragTooltip";
+    el.className = "task-drag-tooltip";
+    document.body.appendChild(el);
+  }
+  return el;
 }
 
 // Compute tracks for overlapping tasks within the same row
@@ -1010,11 +1178,16 @@ async function handleCompleteTask() {
   const targetListId = targetList ? targetList.id : "";
   const targetListName = targetList ? targetList.name : "Task Completed (2026-2027)";
 
-  // Update in activeTasks
-  const task = activeTasks.find(t => t.id === id);
-  if (task) {
-    task.isCompleted = true;
-    if (targetListId) task.listId = targetListId;
+  // Remove from activeTasks so it immediately disappears from the timeline
+  const taskIndex = activeTasks.findIndex(t => t.id === id);
+  let task = null;
+  if (taskIndex !== -1) {
+    task = activeTasks.splice(taskIndex, 1)[0];
+  } else {
+    const uIndex = unscheduledTasks.findIndex(u => u.id === id);
+    if (uIndex !== -1) {
+      task = unscheduledTasks.splice(uIndex, 1)[0];
+    }
   }
 
   // Sync to Trello API: set dueComplete=true and move to target completed list
@@ -1029,8 +1202,9 @@ async function handleCompleteTask() {
 
   computeTaskTracks();
   renderTimeline();
+  renderUnscheduledDrawer();
   closeEditModal();
-  showNavToast(`✅ Marked "${task ? task.name : 'Task'}" as completed in "${targetListName}"`);
+  showNavToast(`✅ Marked "${task ? task.name : 'Task'}" completed & moved to "${targetListName}" (removed from timeline)`);
 }
 
 async function handleUnscheduleTask() {

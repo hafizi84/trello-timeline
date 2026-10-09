@@ -651,16 +651,14 @@ body {
   border-radius: 6px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 2px;
   font-size: 0.84rem;
   font-weight: 600;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   z-index: 10;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
@@ -668,6 +666,107 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
   z-index: 18;
+}
+
+.task-pill.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.92;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16) !important;
+  transform: scale(1.02);
+  z-index: 50 !important;
+  transition: none !important;
+}
+
+body.is-dragging-task {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: grabbing !important;
+}
+
+.task-pill-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+  pointer-events: none;
+}
+
+.task-pill-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Resize Handles (Left and Right edges) */
+.task-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: ew-resize;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.task-pill:hover .task-resize-handle {
+  opacity: 1;
+}
+
+.task-resize-handle.resize-left {
+  left: 0;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.task-resize-handle.resize-right {
+  right: 0;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.task-resize-handle:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.task-resize-handle::after {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: currentColor;
+  opacity: 0.45;
+}
+
+.task-resize-handle:hover::after {
+  opacity: 0.95;
+  height: 15px;
+}
+
+/* Drag & Resize Live Tooltip */
+.task-drag-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: #111827;
+  color: #FFFFFF;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  display: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
 }
 
 /* Task Pill Colors */
