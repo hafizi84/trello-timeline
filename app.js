@@ -28,6 +28,7 @@ let dependencies = [];
 let currentBoardLists = []; // Holds active board lists for list movement
 let currentBoardLabels = []; // Holds all board labels for dropdown selection
 let rowNavIndexes = {}; // Tracks focused task index per row for double-click cycling
+let boardHolidays = []; // Holds public holidays & leave days { id, title, startDate, dueDate }
 
 function getCenteredDate(baseDate, offsetDays) {
   const d = new Date(baseDate);
@@ -35,11 +36,53 @@ function getCenteredDate(baseDate, offsetDays) {
   return d;
 }
 
+// Format Date object to standard YYYY-MM-DD for native <input type="date"> and Trello API
 function formatLocalDate(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Format any date / ISO string / Date object into DD-MM-YYYY format
+function formatDateDDMMYYYY(d) {
+  if (!d) return "";
+  if (typeof d === "string") {
+    const clean = d.split("T")[0];
+    const parts = clean.split("-");
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD -> DD-MM-YYYY
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else if (parts[2].length === 4) {
+        // Already DD-MM-YYYY
+        return clean;
+      }
+    }
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) {
+      const day = String(parsed.getDate()).padStart(2, '0');
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const year = parsed.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+    return d;
+  } else if (d instanceof Date) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return String(d);
+}
+
+// Check if a given date string (YYYY-MM-DD) falls within any active holiday / leave
+function getHolidayForDate(dayStr) {
+  return boardHolidays.find(h => {
+    const start = h.startDate;
+    const due = h.dueDate || h.startDate;
+    return dayStr >= start && dayStr <= due;
+  });
 }
 
 // Map Trello label colors to friendly emojis for dropdown display
@@ -207,16 +250,46 @@ async function fetchBoardData(boardId) {
 
     currentBoardLabels = labelList.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Separate Cards into Scheduled vs Unscheduled
+    // Separate Cards into Scheduled vs Unscheduled, and extract Holidays / Leave
     activeTasks = [];
     unscheduledTasks = [];
     dependencies = [];
     rowNavIndexes = {};
     const scheduledCards = [];
 
+    // Initialize boardHolidays from localStorage cache
+    boardHolidays = [];
+    try {
+      const localHols = JSON.parse(localStorage.getItem(`trello_holidays_${boardId}`) || "[]");
+      if (Array.isArray(localHols)) boardHolidays = localHols;
+    } catch (e) {
+      console.warn("Could not read local holidays:", e);
+    }
+
     cards.forEach((card, idx) => {
       const listObj = lists.find(l => l.id === card.idList);
       const listName = listObj ? listObj.name : "";
+
+      // Check if this card is marked as a Holiday / Leave
+      const isHol = card.name.startsWith("🌴") || card.name.startsWith("[Holiday]");
+      if (isHol && (card.start || card.due)) {
+        const cleanTitle = card.name.replace(/^(\[Holiday\]\s*|🌴\s*)/, '').trim();
+        const s = card.start ? card.start.split("T")[0] : null;
+        const d = card.due ? card.due.split("T")[0] : null;
+        const holItem = {
+          id: card.id,
+          title: cleanTitle || "Public Holiday",
+          startDate: s || d,
+          dueDate: d || s
+        };
+        const existIdx = boardHolidays.findIndex(h => h.id === card.id || (h.title === holItem.title && h.startDate === holItem.startDate));
+        if (existIdx !== -1) {
+          boardHolidays[existIdx] = holItem;
+        } else {
+          boardHolidays.push(holItem);
+        }
+        return; // Exclude from regular timeline task bars!
+      }
 
       // Exclude cards marked completed or inside completed lists from the active timeline view
       if (card.dueComplete === true || (listName && listName.toLowerCase().includes("completed"))) {
@@ -470,16 +543,25 @@ function renderTimeline() {
     const isToday = dayStr === todayStr;
     const dayOfWeek = day.getDay(); // 0 is Sunday, 6 is Saturday
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const holiday = getHolidayForDate(dayStr);
+    const isHoliday = Boolean(holiday);
 
     if (isToday) todayColIndex = index;
 
     const dayCol = document.createElement("div");
-    dayCol.className = `timeline-day-header ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""}`;
+    dayCol.className = `timeline-day-header ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""} ${isHoliday ? "is-holiday" : ""}`;
     dayCol.dataset.date = dayStr;
-    dayCol.title = isWeekend 
-      ? `${dayName} ${dayNum} (Weekend)\n💡 Double-click to create new task on this date` 
-      : `${dayName} ${dayNum}\n💡 Double-click to create new task on this date`;
-    dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span>`;
+    if (isHoliday) {
+      dayCol.dataset.holidayId = holiday.id;
+      dayCol.title = `🌴 ${holiday.title} (Holiday / Leave)\nDate: ${formatDateDDMMYYYY(day)}\n💡 Double-click to manage holiday`;
+      dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span><span class="holiday-icon-indicator" title="${holiday.title}">🌴</span>`;
+    } else if (isWeekend) {
+      dayCol.title = `${dayName} ${dayNum} (Weekend)\nDate: ${formatDateDDMMYYYY(day)}\n💡 Double-click to create new task on this date`;
+      dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span>`;
+    } else {
+      dayCol.title = `${dayName} ${dayNum}\nDate: ${formatDateDDMMYYYY(day)}\n💡 Double-click to create new task on this date`;
+      dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span>`;
+    }
     headerRow.appendChild(dayCol);
   });
 
@@ -544,13 +626,22 @@ function renderTimeline() {
       const isToday = dayStr === todayStr;
       const dayOfWeek = day.getDay(); // 0 is Sunday, 6 is Saturday
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      const holiday = getHolidayForDate(dayStr);
+      const isHoliday = Boolean(holiday);
+
       const cell = document.createElement("div");
-      cell.className = `grid-col-cell ${isToday ? "is-today-col" : ""} ${isWeekend ? "is-weekend-col" : ""}`;
+      cell.className = `grid-col-cell ${isToday ? "is-today-col" : ""} ${isWeekend ? "is-weekend-col" : ""} ${isHoliday ? "is-holiday-col" : ""}`;
       cell.dataset.date = dayStr;
       cell.dataset.rowId = row.id;
-      cell.title = isWeekend 
-        ? `Weekend (${dayStr})\n💡 Double-click to create new task on this date` 
-        : `${dayStr}\n💡 Double-click to create new task on this date`;
+
+      if (isHoliday) {
+        cell.dataset.holidayId = holiday.id;
+        cell.title = `🌴 ${holiday.title} (Holiday / Leave) - ${formatDateDDMMYYYY(dayStr)}\n💡 Double-click to manage holiday`;
+      } else if (isWeekend) {
+        cell.title = `Weekend (${formatDateDDMMYYYY(dayStr)})\n💡 Double-click to create new task on this date`;
+      } else {
+        cell.title = `${formatDateDDMMYYYY(dayStr)}\n💡 Double-click to create new task on this date`;
+      }
       gridRow.appendChild(cell);
     });
 
@@ -621,7 +712,7 @@ function updateTodayMarkerPosition() {
   todayMarker.style.left = `${xPos}px`;
 
   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  todayMarker.title = `Current Time: ${timeStr} (Today's Working Hours: 9:00 AM – 6:00 PM)`;
+  todayMarker.title = `Current Time: ${timeStr} • Date: ${formatDateDDMMYYYY(now)} (Today's Working Hours: 9:00 AM – 6:00 PM)`;
 }
 
 // Create a single Task Pill with Drag & Resize controllers
@@ -657,7 +748,7 @@ function createTaskPill(task, days) {
     </div>
     <div class="task-resize-handle resize-right" title="Drag to adjust due date (length)"></div>
   `;
-  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${task.startDate} to ${task.dueDate}\n💡 Drag bar to shift dates, drag edges to resize length`;
+  pill.title = `${task.name}${task.isCompleted ? ' (Completed)' : ''}\n${formatDateDDMMYYYY(task.startDate)} to ${formatDateDDMMYYYY(task.dueDate)}\n💡 Drag bar to shift dates, drag edges to resize length`;
 
   // Attach drag & resize interactivity
   setupTaskDragAndResize(pill, task);
@@ -794,7 +885,7 @@ function setupTaskDragAndResize(pill, task) {
 
       computeTaskTracks();
       renderTimeline();
-      showNavToast(`📅 Updated "${task.name}": ${newStartStr} to ${newDueStr}`);
+      showNavToast(`📅 Updated "${task.name}": ${formatDateDDMMYYYY(newStartStr)} to ${formatDateDDMMYYYY(newDueStr)}`);
     } else {
       // Snap back if no day change
       renderTimeline();
@@ -805,7 +896,7 @@ function setupTaskDragAndResize(pill, task) {
 }
 
 function formatShortDate(d) {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDateDDMMYYYY(d);
 }
 
 function getOrCreateDragTooltip() {
@@ -977,9 +1068,52 @@ function openEditModal(task) {
     rowLabel.textContent = currentViewMode === "label" ? "Label" : (currentViewMode === "list" ? "Trello List" : "Assignee");
   }
 
+  // Setup Entry Type Selector (Task vs Holiday / Leave)
+  const typeTaskRadio = document.getElementById("entryTypeTask");
+  const typeHolidayRadio = document.getElementById("entryTypeHoliday");
+  const tabTypeTask = document.getElementById("tabTypeTask");
+  const tabTypeHoliday = document.getElementById("tabTypeHoliday");
+  const taskNameLabel = document.getElementById("taskNameLabel");
+  const taskClassificationRow = document.getElementById("taskClassificationRow");
+  const deleteHolidayBtn = document.getElementById("deleteHolidayBtn");
+
+  function setEntryModeUI(isHoliday) {
+    if (isHoliday) {
+      if (typeHolidayRadio) typeHolidayRadio.checked = true;
+      tabTypeHoliday?.classList.add("active");
+      tabTypeTask?.classList.remove("active");
+      if (taskNameLabel) taskNameLabel.textContent = "Holiday / Leave Title";
+      titleInput.placeholder = "e.g. Deepavali, Malaysia Day, Annual Leave";
+      if (taskClassificationRow) taskClassificationRow.style.display = "none";
+      if (modalTitle) modalTitle.textContent = isNew ? "Set Public Holiday / Leave" : "Edit Holiday / Leave";
+      if (saveBtn) saveBtn.textContent = isNew ? "Save Holiday" : "Update Holiday";
+      if (completeBtn) completeBtn.style.display = "none";
+      if (unscheduleBtn) unscheduleBtn.style.display = "none";
+      if (archiveBtn) archiveBtn.style.display = "none";
+      if (deleteHolidayBtn) deleteHolidayBtn.style.display = isNew ? "none" : "inline-flex";
+    } else {
+      if (typeTaskRadio) typeTaskRadio.checked = true;
+      tabTypeTask?.classList.add("active");
+      tabTypeHoliday?.classList.remove("active");
+      if (taskNameLabel) taskNameLabel.textContent = "Task Name";
+      titleInput.placeholder = isNew ? "Enter task name..." : "e.g. Website design";
+      if (taskClassificationRow) taskClassificationRow.style.display = "grid";
+      if (modalTitle) modalTitle.textContent = isNew ? "New Task" : "Edit Task Details";
+      if (saveBtn) saveBtn.textContent = isNew ? "Create & Sync to Trello" : "Save & Sync to Trello";
+      if (deleteHolidayBtn) deleteHolidayBtn.style.display = "none";
+      if (completeBtn) completeBtn.style.display = isNew ? "none" : "inline-flex";
+      if (unscheduleBtn) unscheduleBtn.style.display = isNew ? "none" : "inline-flex";
+      if (archiveBtn) archiveBtn.style.display = isNew ? "none" : "inline-flex";
+    }
+  }
+
+  setEntryModeUI(Boolean(task.isHoliday));
+  if (typeTaskRadio) typeTaskRadio.onchange = () => setEntryModeUI(false);
+  if (typeHolidayRadio) typeHolidayRadio.onchange = () => setEntryModeUI(true);
+
   // Reflect completion status or hide actions completely for new tasks
   if (completeBtn) {
-    completeBtn.style.display = isNew ? "none" : "inline-flex";
+    completeBtn.style.display = (isNew || task.isHoliday) ? "none" : "inline-flex";
     if (task.isCompleted) {
       completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Completed</span>`;
       completeBtn.style.opacity = "0.85";
@@ -990,10 +1124,10 @@ function openEditModal(task) {
   }
 
   if (unscheduleBtn) {
-    unscheduleBtn.style.display = isNew ? "none" : "inline-flex";
+    unscheduleBtn.style.display = (isNew || task.isHoliday) ? "none" : "inline-flex";
   }
   if (archiveBtn) {
-    archiveBtn.style.display = isNew ? "none" : "inline-flex";
+    archiveBtn.style.display = (isNew || task.isHoliday) ? "none" : "inline-flex";
   }
 
   // Populate Row / Target dropdown
@@ -1142,7 +1276,98 @@ function bindUIEvents() {
     let due = document.getElementById("taskDueDate").value;
     const rowId = document.getElementById("taskAssignee").value;
     const color = document.getElementById("taskColor").value;
-    const isNew = id.startsWith("custom_") || id.startsWith("new_");
+    const isHolidayMode = document.getElementById("entryTypeHoliday")?.checked;
+    const isNew = id.startsWith("custom_") || id.startsWith("new_") || id.startsWith("holiday_");
+
+    if (isHolidayMode) {
+      const holidayTitle = name.replace(/^(\[Holiday\]\s*|🌴\s*)/, '').trim() || "Public Holiday";
+      const trelloCardTitle = `🌴 ${holidayTitle}`;
+      const syncStatus = document.getElementById("syncStatus");
+      if (syncStatus) {
+        syncStatus.innerHTML = `<span class="status-dot" style="background:#F59E0B"></span><span class="status-text">${isNew ? "Creating Holiday..." : "Saving Holiday..."}</span>`;
+      }
+
+      // If both dates are empty, alert
+      if (!start && !due) {
+        alert("Please select at least a Start Date for the holiday / leave.");
+        return;
+      }
+      if (!start && due) start = due;
+      if (start && !due) due = start;
+
+      // Find note/holiday list on Trello or fallback to first list
+      const noteList = currentBoardLists.find(l => {
+        const ln = (l.name || "").toLowerCase();
+        return ln.includes("note") || ln.includes("memo") || ln.includes("holiday");
+      }) || currentBoardLists.find(l => l.id === "628595a5a6a64558821ec0de") || currentBoardLists[0];
+      const listId = noteList ? noteList.id : (currentBoardLists[0] ? currentBoardLists[0].id : "");
+
+      let realHolidayId = id;
+      if (isNew) {
+        realHolidayId = `holiday_${Date.now()}`;
+        try {
+          const postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(trelloCardTitle)}&start=${start}&due=${due}`;
+          const createRes = await fetch(postUrl, { method: "POST" });
+          if (createRes.ok) {
+            const createdCard = await createRes.json();
+            realHolidayId = createdCard.id;
+          }
+        } catch (err) {
+          console.error("Failed to create holiday card on Trello:", err);
+        }
+      } else {
+        try {
+          const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(trelloCardTitle)}&start=${start}&due=${due}`;
+          await fetch(putUrl, { method: "PUT" });
+        } catch (err) {
+          console.error("Failed to update holiday card on Trello:", err);
+        }
+      }
+
+      const holidayItem = {
+        id: realHolidayId,
+        title: holidayTitle,
+        startDate: start,
+        dueDate: due
+      };
+
+      const existingIndex = boardHolidays.findIndex(h => h.id === id || h.id === realHolidayId);
+      if (existingIndex !== -1) {
+        boardHolidays[existingIndex] = holidayItem;
+      } else {
+        boardHolidays.push(holidayItem);
+      }
+
+      try {
+        localStorage.setItem(`trello_holidays_${currentBoardId}`, JSON.stringify(boardHolidays));
+      } catch (err) {
+        console.warn("Failed to store holidays in localStorage:", err);
+      }
+
+      // Remove from active tasks & unscheduled if it was previously a normal task
+      activeTasks = activeTasks.filter(t => t.id !== id && t.id !== realHolidayId);
+      unscheduledTasks = unscheduledTasks.filter(u => u.id !== id && u.id !== realHolidayId);
+
+      computeTaskTracks();
+      renderTimeline();
+      renderUnscheduledDrawer();
+      closeEditModal();
+
+      if (syncStatus) {
+        syncStatus.innerHTML = `<span class="status-dot"></span><span class="status-text">Connected</span>`;
+      }
+
+      showNavToast(`🌴 Holiday set: "${holidayTitle}" (${formatDateDDMMYYYY(start)}${start !== due ? ' to ' + formatDateDDMMYYYY(due) : ''})`);
+      return;
+    }
+
+    // Normal Task mode: if this card was previously in boardHolidays, clean it up
+    if (boardHolidays.some(h => h.id === id)) {
+      boardHolidays = boardHolidays.filter(h => h.id !== id);
+      try {
+        localStorage.setItem(`trello_holidays_${currentBoardId}`, JSON.stringify(boardHolidays));
+      } catch (e) {}
+    }
 
     // If both dates are empty/cleared on an existing task -> unschedule the task!
     if (!start && !due) {
@@ -1296,6 +1521,7 @@ function bindUIEvents() {
   document.getElementById("completeTaskBtn")?.addEventListener("click", handleCompleteTask);
   document.getElementById("unscheduleTaskBtn")?.addEventListener("click", handleUnscheduleTask);
   document.getElementById("archiveTaskBtn")?.addEventListener("click", handleArchiveTask);
+  document.getElementById("deleteHolidayBtn")?.addEventListener("click", handleDeleteHoliday);
   document.getElementById("refreshBtn")?.addEventListener("click", handleRefreshTimeline);
   document.getElementById("clearStartDateBtn")?.addEventListener("click", () => {
     document.getElementById("taskStartDate").value = "";
@@ -1378,6 +1604,22 @@ function bindUIEvents() {
 // Triggered by double-clicking on any date box (header or grid cell)
 // ==========================================================================
 function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
+  // If date already has a holiday, open directly to edit or manage that holiday!
+  const existingHoliday = getHolidayForDate(targetDateStr);
+  if (existingHoliday) {
+    openEditModal({
+      id: existingHoliday.id,
+      name: existingHoliday.title,
+      startDate: existingHoliday.startDate,
+      dueDate: existingHoliday.dueDate || existingHoliday.startDate,
+      rowId: "",
+      color: "yellow",
+      isHoliday: true,
+      isNewScheduled: false
+    });
+    return;
+  }
+
   const startDate = new Date(targetDateStr + "T00:00:00");
   const dueDate = new Date(startDate);
   dueDate.setDate(dueDate.getDate() + 2); // 2-day span by default
@@ -1477,7 +1719,7 @@ function jumpToRowTask(rowId) {
   }, 80);
 
   // Friendly date and counter toast
-  const formattedDate = targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const formattedDate = formatDateDDMMYYYY(targetDate);
   const stepLabel = currentIndex === 0 ? "Latest task" : `Previous task (${currentIndex + 1}/${tasks.length})`;
   showNavToast(`📍 ${stepLabel}: "${targetTask.name}" • ${formattedDate}`);
 }
@@ -1652,6 +1894,34 @@ async function handleArchiveTask() {
   renderUnscheduledDrawer();
   closeEditModal();
   showNavToast(`📦 "${taskObj ? taskObj.name : 'Task'}" archived on Trello and removed from timeline`);
+}
+
+// ==========================================================================
+// Delete / Remove Public Holiday
+// ==========================================================================
+async function handleDeleteHoliday() {
+  const id = document.getElementById("editCardId").value;
+  if (!id) return;
+
+  const holiday = boardHolidays.find(h => h.id === id);
+  const title = holiday ? holiday.title : "Holiday";
+
+  boardHolidays = boardHolidays.filter(h => h.id !== id);
+  try {
+    localStorage.setItem(`trello_holidays_${currentBoardId}`, JSON.stringify(boardHolidays));
+  } catch (e) {}
+
+  if (!id.startsWith("holiday_") && !id.startsWith("custom_")) {
+    try {
+      await fetch(`https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&closed=true`, { method: "PUT" });
+    } catch (err) {
+      console.error("Failed to close holiday card on Trello:", err);
+    }
+  }
+
+  renderTimeline();
+  closeEditModal();
+  showNavToast(`🗑️ Removed holiday: "${title}"`);
 }
 
 // ==========================================================================

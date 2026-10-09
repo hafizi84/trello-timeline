@@ -578,6 +578,18 @@ body {
   color: #0284C7;
 }
 
+/* Holiday Day Header Box */
+.timeline-day-header.is-holiday {
+  background-color: #EDEFF2;
+  color: #1E293B;
+}
+
+.timeline-day-header.is-holiday .holiday-icon-indicator {
+  font-size: 0.85rem;
+  line-height: 1;
+  margin-left: 2px;
+}
+
 .day-badge-pill {
   width: 24px;
   height: 24px;
@@ -688,6 +700,19 @@ body {
 }
 
 .grid-col-cell.is-weekend-col.is-today-col {
+  background-color: #E0F2FE80;
+}
+
+/* Holiday Grid Column (Same light grey as weekend) */
+.grid-col-cell.is-holiday-col {
+  background-color: #F4F5F7;
+}
+
+.grid-col-cell.is-holiday-col:hover {
+  background-color: #EBEDF0;
+}
+
+.grid-col-cell.is-holiday-col.is-today-col {
   background-color: #E0F2FE80;
 }
 
@@ -1078,6 +1103,54 @@ body.is-dragging-task {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Segmented Entry Type Selector (Task vs Holiday / Leave) */
+.entry-type-selector {
+  display: flex;
+  background-color: #F3F4F6;
+  padding: 4px;
+  border-radius: 9px;
+  gap: 6px;
+  border: 1px solid #E5E7EB;
+}
+
+.entry-type-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.entry-type-tab input[type="radio"] {
+  display: none;
+}
+
+.entry-type-tab:hover {
+  color: #1F2937;
+}
+
+.entry-type-tab.active,
+.entry-type-tab:has(input:checked) {
+  background-color: #FFFFFF;
+  color: #0079BF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.date-format-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #9CA3AF;
+  margin-left: 4px;
 }
 
 .form-group {
