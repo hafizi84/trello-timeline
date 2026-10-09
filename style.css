@@ -575,15 +575,29 @@ body {
   box-shadow: 0 1px 3px rgba(2, 132, 199, 0.4);
 }
 
-/* Vertical "Today" or Milestone Red Line */
+/* Vertical "Today" Time Marker Line */
 .today-marker-line {
   position: absolute;
   top: 48px;
   bottom: 0;
-  width: 1.5px;
+  width: 2px;
   background-color: var(--today-line-color);
   z-index: 15;
   pointer-events: none;
+  transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.today-marker-line::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--today-line-color);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
 }
 
 /* SVG Dependency Overlay */

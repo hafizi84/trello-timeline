@@ -100,6 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadTrelloBoards();
   fetchBoardData(currentBoardId);
   bindUIEvents();
+  setInterval(updateTodayMarkerPosition, 30000); // Update real-time red line position every 30s
 });
 
 // ==========================================================================
@@ -418,15 +419,8 @@ function renderTimeline() {
     headerRow.appendChild(dayCol);
   });
 
-  // Position vertical red indicator line at Today
-  if (todayColIndex !== -1) {
-    const colWidth = zoomMode === "days" ? 140 : 100;
-    const xPos = todayColIndex * colWidth + (colWidth / 2);
-    todayMarker.style.display = "block";
-    todayMarker.style.left = `${xPos}px`;
-  } else {
-    todayMarker.style.display = "none";
-  }
+  // Position vertical red indicator line based on current time (9:00 AM - 6:00 PM)
+  updateTodayMarkerPosition();
 
   // 3. Render Left Sidebar Rows
   activeRows.forEach(row => {
@@ -500,6 +494,63 @@ function renderTimeline() {
   });
 
   setTimeout(drawDependencyCurves, 50);
+}
+
+// ==========================================================================
+// Real-Time Today Marker Engine (9:00 AM – 6:00 PM Working Hours Mapping)
+// Positions the vertical red line within Today's column based on current local time:
+// - Before 9:00 AM: Stays at the beginning (left) of today's column box
+// - 9:00 AM – 6:00 PM: Progresses smoothly across today's box (9 working hours)
+// - After 6:00 PM: Stays at the end (right) of today's column box
+// ==========================================================================
+function updateTodayMarkerPosition() {
+  const todayMarker = document.getElementById("todayMarkerLine");
+  if (!todayMarker) return;
+
+  const now = new Date();
+  const todayStr = formatLocalDate(now);
+
+  // Check if Today is in the visible date range
+  const curr = new Date(viewStartDate);
+  let todayColIndex = -1;
+  for (let i = 0; i < totalVisibleDays; i++) {
+    if (formatLocalDate(curr) === todayStr) {
+      todayColIndex = i;
+      break;
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  if (todayColIndex === -1) {
+    todayMarker.style.display = "none";
+    return;
+  }
+
+  const colWidth = zoomMode === "days" ? 140 : 100;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const workStart = 9 * 60;  // 9:00 AM = 540 minutes
+  const workEnd = 18 * 60;   // 6:00 PM = 1080 minutes
+  const workDuration = workEnd - workStart; // 540 minutes
+
+  let offsetInCol = 0;
+  if (currentMinutes <= workStart) {
+    // Before 9:00 AM: stays pinned at beginning of today's box
+    offsetInCol = 3;
+  } else if (currentMinutes >= workEnd) {
+    // After 6:00 PM: stays pinned at end of today's box
+    offsetInCol = colWidth - 3;
+  } else {
+    // Between 9:00 AM and 6:00 PM: proportional progression
+    const fraction = (currentMinutes - workStart) / workDuration;
+    offsetInCol = Math.max(3, Math.min(colWidth - 3, fraction * colWidth));
+  }
+
+  const xPos = todayColIndex * colWidth + offsetInCol;
+  todayMarker.style.display = "block";
+  todayMarker.style.left = `${xPos}px`;
+
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  todayMarker.title = `Current Time: ${timeStr} (Today's Working Hours: 9:00 AM – 6:00 PM)`;
 }
 
 // Create a single Task Pill with Drag & Resize controllers
