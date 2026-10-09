@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Trello Task</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2.1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3.1">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .quick-popup-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #FFFFFF;
+      box-sizing: border-box;
+    }
+
+    .quick-popup-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FAFBFD;
+      flex-shrink: 0;
+    }
+
+    .quick-popup-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .quick-popup-icon {
+      width: 28px;
+      height: 28px;
+      background: #0079BF;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      box-shadow: 0 1px 3px rgba(0, 121, 191, 0.3);
+    }
+
+    .quick-popup-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1E293B;
+      margin: 0;
+    }
+
+    .quick-board-select {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .quick-popup-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px;
+      display: grid;
+      grid-template-columns: 1fr 310px;
+      gap: 16px;
+      box-sizing: border-box;
+    }
+
+    .quick-left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .quick-right-col {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #E2E8F0;
+      padding-left: 16px;
+      min-width: 0;
+    }
+
+    .quick-popup-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #E2E8F0;
+      background: #FAFBFD;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .quick-footer-hint {
+      font-size: 0.78rem;
+      color: #64748B;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1E293B;
+      color: #FFFFFF;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="quick-popup-container">
+    <!-- Header -->
+    <header class="quick-popup-header">
+      <div class="quick-popup-title-wrap">
+        <div class="quick-popup-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <rect width="24" height="24" rx="4" fill="#0079BF"/>
+            <rect x="4" y="4" width="6.5" height="15" rx="1.5" fill="#FFFFFF"/>
+            <rect x="13.5" y="4" width="6.5" height="10" rx="1.5" fill="#FFFFFF"/>
+          </svg>
+        </div>
+        <h2 class="quick-popup-title">New Trello Task</h2>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:8px;">
+        <select id="boardSelect" class="quick-board-select" title="Target Trello Board">
+          <option value="628595a5a6a64558821ec0dd" selected>Hafizi - YCP Renoir TTD</option>
+        </select>
+        <button id="closeBtn" class="close-btn" title="Close (Esc)">&times;</button>
+      </div>
+    </header>
+
+    <!-- Form Content -->
+    <form id="quickTaskForm" class="quick-popup-body">
+      <!-- Left Column: Task Details -->
+      <div class="quick-left-col">
+        <div class="form-group">
+          <label for="taskName">Task Name *</label>
+          <input type="text" id="taskName" required placeholder="e.g. Review client feedback on landing page" autocomplete="off" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="taskDesc">Task Description</label>
+          <textarea id="taskDesc" rows="3" placeholder="Add detailed notes, URLs, or instructions..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="taskStartDate">Start Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
+              <button type="button" class="clear-field-link" id="clearStartDateBtn">Clear</button>
+            </div>
+            <input type="date" id="taskStartDate">
+          </div>
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="taskDueDate">Due Date <span class="date-format-tag">(DD-MM-YYYY)</span></label>
+              <button type="button" class="clear-field-link" id="clearDueDateBtn">Clear</button>
+            </div>
+            <input type="date" id="taskDueDate">
+          </div>
+        </div>
+
+        <div class="form-row form-row-3">
+          <div class="form-group">
+            <label for="taskStatus">Status / List</label>
+            <select id="taskStatus" class="select-dropdown">
+              <option value="">Loading lists...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="taskLabel">Label</label>
+            <select id="taskLabel" class="select-dropdown">
+              <option value="">(None)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="taskColor">Theme / Color</label>
+            <select id="taskColor" class="select-dropdown">
+              <option value="yellow">💛 Warm Yellow</option>
+              <option value="blue" selected>💙 Pastel Blue</option>
+              <option value="orange">🧡 Bright Orange</option>
+              <option value="purple">💜 Soft Purple</option>
+              <option value="green">💚 Mint Green</option>
+              <option value="sky">🩵 Sky Blue</option>
+              <option value="pink">🩷 Rose Pink</option>
+              <option value="lime">🍏 Fresh Lime</option>
+              <option value="milestone">🚩 Milestone (Red)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Checklist Section -->
+      <div class="quick-right-col" id="checklistSection">
+        <div class="checklist-panel-header">
+          <div class="checklist-panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            <span>Checklist</span>
+          </div>
+          <div class="checklist-counter-badge" id="checklistCounterBadge">0%</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="checklist-progress-bar-container">
+          <div class="checklist-progress-bar-fill" id="checklistProgressBarFill" style="width: 0%;"></div>
+        </div>
+
+        <!-- Checklist Items List -->
+        <div class="checklist-items-list" id="checklistItemsList" style="max-height: 250px; overflow-y: auto;">
+          <!-- Dynamically populated checklist items -->
+        </div>
+
+        <!-- Add Item Form -->
+        <div class="checklist-add-form" style="margin-top: 10px;">
+          <div class="checklist-add-input-row">
+            <input type="text" id="newCheckItemInput" placeholder="Add an item..." autocomplete="off">
+            <button type="button" id="addCheckItemBtn" class="checklist-add-btn">Add</button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Footer Actions -->
+    <footer class="quick-popup-footer">
+      <div class="quick-footer-hint">
+        <span>💡 Press <strong>Ctrl+Enter</strong> to save, <strong>Esc</strong> to cancel</span>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="button" id="cancelBtn" class="secondary-btn">Cancel</button>
+        <button type="button" id="saveBtn" class="primary-btn">Save & Sync to Trello</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toastMsg" class="toast-msg"></div>
+
+  <script>
+    const API_KEY = "dbbc85674e84318b89cb9355c2b7f4d7";
+    const TOKEN = "ATTA9fb2ac93bd4613434ec9ac642c4312aa108679da01dd61376eb277184388290d4F7EB0AC";
+    const DEFAULT_BOARD_ID = "628595a5a6a64558821ec0dd";
+
+    let currentBoardId = DEFAULT_BOARD_ID;
+    let boardLists = [];
+    let boardLabels = [];
+    let checklistItems = [];
+
+    // Helper Date Formatter (YYYY-MM-DD for input[type="date"])
+    function formatInputDate(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function showToast(text, duration = 2500) {
+      const t = document.getElementById("toastMsg");
+      t.textContent = text;
+      t.style.display = "block";
+      setTimeout(() => { t.style.display = "none"; }, duration);
+    }
+
+    // Parse URL params for pre-filled data
+    function parseInitialData() {
+      const params = new URLSearchParams(window.location.search);
+      const rawData = params.get("data");
+      let title = params.get("title") || "";
+      let desc = params.get("desc") || "";
+
+      if (rawData) {
+        try {
+          const parsed = JSON.parse(rawData);
+          if (parsed.title) title = parsed.title;
+          if (parsed.desc) desc = parsed.desc;
+        } catch (e) {
+          title = rawData;
+        }
+      }
+
+      const taskNameInput = document.getElementById("taskName");
+      const taskDescInput = document.getElementById("taskDesc");
+
+      if (title) taskNameInput.value = title;
+      if (desc) taskDescInput.value = desc;
+
+      const today = new Date();
+      document.getElementById("taskStartDate").value = formatInputDate(today);
+      document.getElementById("taskDueDate").value = formatInputDate(today);
+
+      setTimeout(() => {
+        taskNameInput.focus();
+        if (title) taskNameInput.select();
+      }, 100);
+    }
+
+    // Load Board Lists & Labels from Trello API
+    async function loadBoardMetadata(boardId) {
+      try {
+        const [listsRes, labelsRes] = await Promise.all([
+          fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${API_KEY}&token=${TOKEN}`),
+          fetch(`https://api.trello.com/1/boards/${boardId}/labels?key=${API_KEY}&token=${TOKEN}`)
+        ]);
+
+        boardLists = await listsRes.json();
+        boardLabels = await labelsRes.json();
+
+        // Populate Status / List dropdown
+        const statusSelect = document.getElementById("taskStatus");
+        statusSelect.innerHTML = "";
+        
+        let incomingOptionIndex = 0;
+        boardLists.forEach((l, idx) => {
+          const opt = document.createElement("option");
+          opt.value = l.id;
+          opt.textContent = l.name;
+          if (l.name.toLowerCase().includes("incoming")) {
+            incomingOptionIndex = idx;
+          }
+          statusSelect.appendChild(opt);
+        });
+
+        if (boardLists.length > 0) {
+          statusSelect.selectedIndex = incomingOptionIndex;
+        }
+
+        // Populate Label dropdown
+        const labelSelect = document.getElementById("taskLabel");
+        labelSelect.innerHTML = `<option value="">(None)</option>`;
+        boardLabels.forEach(lbl => {
+          if (lbl.name) {
+            const opt = document.createElement("option");
+            opt.value = lbl.id;
+            opt.textContent = `${lbl.name} (${lbl.color || 'gray'})`;
+            labelSelect.appendChild(opt);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load Trello board metadata:", err);
+        showToast("⚠️ Could not load Trello lists. Check connection.");
+      }
+    }
+
+    // Checklist Rendering
+    function renderChecklist() {
+      const listEl = document.getElementById("checklistItemsList");
+      const badgeEl = document.getElementById("checklistCounterBadge");
+      const fillEl = document.getElementById("checklistProgressBarFill");
+
+      listEl.innerHTML = "";
+
+      const total = checklistItems.length;
+      const completed = checklistItems.filter(i => i.isDone).length;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      badgeEl.textContent = `${percent}%`;
+      fillEl.style.width = `${percent}%`;
+      if (percent === 100 && total > 0) {
+        fillEl.classList.add("is-all-done");
+      } else {
+        fillEl.classList.remove("is-all-done");
+      }
+
+      if (total === 0) {
+        listEl.innerHTML = `<div style="color:#94A3B8; font-size:0.8rem; padding:10px 0; text-align:center;">No checklist items yet.</div>`;
+        return;
+      }
+
+      checklistItems.forEach((item, index) => {
+        const itemRow = document.createElement("div");
+        itemRow.className = `checklist-item ${item.isDone ? 'is-done' : ''}`;
+        itemRow.innerHTML = `
+          <input type="checkbox" class="checklist-item-checkbox" ${item.isDone ? 'checked' : ''} data-index="${index}">
+          <span class="checklist-item-name">${item.name}</span>
+          <button type="button" class="checklist-item-delete-btn" data-index="${index}" title="Delete item">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        `;
+        listEl.appendChild(itemRow);
+      });
+    }
+
+    function addCheckItem() {
+      const input = document.getElementById("newCheckItemInput");
+      const val = input.value.trim();
+      if (!val) return;
+      checklistItems.push({ name: val, isDone: false });
+      input.value = "";
+      renderChecklist();
+      input.focus();
+    }
+
+    // Save & Sync Card to Trello
+    async function handleSaveTask() {
+      const name = document.getElementById("taskName").value.trim();
+      if (!name) {
+        showToast("⚠️ Please enter a task name");
+        document.getElementById("taskName").focus();
+        return;
+      }
+
+      const desc = document.getElementById("taskDesc").value.trim();
+      const listId = document.getElementById("taskStatus").value;
+      const labelId = document.getElementById("taskLabel").value;
+      const startDate = document.getElementById("taskStartDate").value;
+      const dueDate = document.getElementById("taskDueDate").value;
+
+      const saveBtn = document.getElementById("saveBtn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving to Trello...";
+
+      try {
+        const params = new URLSearchParams({
+          key: API_KEY,
+          token: TOKEN,
+          idList: listId,
+          name: name,
+          pos: "top"
+        });
+
+        if (desc) params.append("desc", desc);
+        if (dueDate) params.append("due", new Date(dueDate + "T18:00:00").toISOString());
+        if (startDate) params.append("start", new Date(startDate + "T09:00:00").toISOString());
+        if (labelId) params.append("idLabels", labelId);
+
+        const cardRes = await fetch(`https://api.trello.com/1/cards?${params.toString()}`, {
+          method: "POST"
+        });
+
+        if (!cardRes.ok) {
+          throw new Error(`Trello API error: ${cardRes.status}`);
+        }
+
+        const createdCard = await cardRes.json();
+
+        // If checklist items exist, create checklist
+        if (checklistItems.length > 0) {
+          saveBtn.textContent = "Adding checklist...";
+          const clRes = await fetch(`https://api.trello.com/1/cards/${createdCard.id}/checklists?name=Checklist&key=${API_KEY}&token=${TOKEN}`, {
+            method: "POST"
+          });
+          if (clRes.ok) {
+            const clData = await clRes.json();
+            for (const item of checklistItems) {
+              await fetch(`https://api.trello.com/1/checklists/${clData.id}/checkItems?name=${encodeURIComponent(item.name)}&checked=${item.isDone}&key=${API_KEY}&token=${TOKEN}`, {
+                method: "POST"
+              });
+            }
+          }
+        }
+
+        saveBtn.style.background = "#10B981";
+        saveBtn.textContent = "✅ Saved to Trello!";
+        showToast("📌 Card added successfully to Trello!");
+
+        setTimeout(() => {
+          window.close();
+        }, 650);
+
+      } catch (err) {
+        console.error("Error creating Trello card:", err);
+        saveBtn.disabled = false;
+        saveBtn.style.background = "";
+        saveBtn.textContent = "Save & Sync to Trello";
+        showToast(`❌ Error: ${err.message}`);
+      }
+    }
+
+    // Event Bindings
+    document.addEventListener("DOMContentLoaded", () => {
+      parseInitialData();
+      loadBoardMetadata(currentBoardId);
+      renderChecklist();
+
+      document.getElementById("clearStartDateBtn").addEventListener("click", () => {
+        document.getElementById("taskStartDate").value = "";
+      });
+      document.getElementById("clearDueDateBtn").addEventListener("click", () => {
+        document.getElementById("taskDueDate").value = "";
+      });
+
+      document.getElementById("addCheckItemBtn").addEventListener("click", addCheckItem);
+      document.getElementById("newCheckItemInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          addCheckItem();
+        }
+      });
+
+      document.getElementById("checklistItemsList").addEventListener("click", (e) => {
+        const checkbox = e.target.closest(".checklist-item-checkbox");
+        if (checkbox) {
+          const idx = parseInt(checkbox.dataset.index, 10);
+          checklistItems[idx].isDone = checkbox.checked;
+          renderChecklist();
+          return;
+        }
+
+        const delBtn = e.target.closest(".checklist-item-delete-btn");
+        if (delBtn) {
+          const idx = parseInt(delBtn.dataset.index, 10);
+          checklistItems.splice(idx, 1);
+          renderChecklist();
+        }
+      });
+
+      document.getElementById("saveBtn").addEventListener("click", handleSaveTask);
+      document.getElementById("cancelBtn").addEventListener("click", () => window.close());
+      document.getElementById("closeBtn").addEventListener("click", () => window.close());
+
+      // Global keyboard shortcuts: Esc to close, Ctrl+Enter or Enter in title to save
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          window.close();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          handleSaveTask();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
