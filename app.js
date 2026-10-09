@@ -26,6 +26,7 @@ let activeRows = [];
 let unscheduledTasks = [];
 let dependencies = [];
 let currentBoardLists = []; // Holds active board lists for list movement
+let currentBoardLabels = []; // Holds all board labels for dropdown selection
 let rowNavIndexes = {}; // Tracks focused task index per row for double-click cycling
 
 function getCenteredDate(baseDate, offsetDays) {
@@ -39,6 +40,22 @@ function formatLocalDate(d) {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Map Trello label colors to friendly emojis for dropdown display
+function getLabelEmoji(colorName) {
+  if (!colorName) return "🏷️";
+  const c = colorName.toLowerCase();
+  if (c.includes("green") || c.includes("lime")) return "🟢";
+  if (c.includes("yellow")) return "🟡";
+  if (c.includes("orange")) return "🟠";
+  if (c.includes("red")) return "🔴";
+  if (c.includes("purple")) return "🟣";
+  if (c.includes("sky") || c.includes("blue_light")) return "🩵";
+  if (c.includes("blue")) return "🔵";
+  if (c.includes("pink")) return "🌸";
+  if (c.includes("black")) return "⚫";
+  return "🏷️";
 }
 
 // Map Trello color names to Task Pill CSS color variants
@@ -137,17 +154,58 @@ async function fetchBoardData(boardId) {
   syncStatus.innerHTML = `<span class="status-dot" style="background:#F59E0B"></span><span class="status-text">Syncing...</span>`;
 
   try {
-    // Fetch Cards, Lists, and Members
-    const [cardsRes, listsRes, membersRes] = await Promise.all([
+    // Fetch Cards, Lists, Members, and Board Labels
+    const [cardsRes, listsRes, membersRes, labelsRes] = await Promise.all([
       fetch(`https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&fields=name,due,start,idMembers,idList,labels,id,dueComplete`),
       fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
-      fetch(`https://api.trello.com/1/boards/${boardId}/members?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
+      fetch(`https://api.trello.com/1/boards/${boardId}/members?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`),
+      fetch(`https://api.trello.com/1/boards/${boardId}/labels?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}`)
     ]);
 
     const cards = await cardsRes.json();
     const lists = await listsRes.json();
     const members = await membersRes.json();
+    const boardLabelsData = await labelsRes.json();
     currentBoardLists = lists; // Store lists globally for completed task routing
+
+    // Process and cache all available board labels for dropdown selection
+    const labelList = [];
+    const labelIdSet = new Set();
+
+    if (Array.isArray(boardLabelsData)) {
+      boardLabelsData.forEach(l => {
+        const lName = l.name && l.name.trim() !== ""
+          ? l.name.trim()
+          : (l.color ? l.color.charAt(0).toUpperCase() + l.color.slice(1) + " Label" : "Label");
+        labelList.push({
+          id: l.id,
+          name: lName,
+          color: l.color || "blue_light"
+        });
+        labelIdSet.add(l.id);
+      });
+    }
+
+    // Also include any labels found directly on cards
+    cards.forEach(card => {
+      if (card.labels && card.labels.length > 0) {
+        card.labels.forEach(cl => {
+          if (!labelIdSet.has(cl.id)) {
+            const clName = cl.name && cl.name.trim() !== ""
+              ? cl.name.trim()
+              : (cl.color ? cl.color.charAt(0).toUpperCase() + cl.color.slice(1) + " Label" : "Label");
+            labelList.push({
+              id: cl.id,
+              name: clName,
+              color: cl.color || "blue_light"
+            });
+            labelIdSet.add(cl.id);
+          }
+        });
+      }
+    });
+
+    currentBoardLabels = labelList.sort((a, b) => a.name.localeCompare(b.name));
 
     // Separate Cards into Scheduled vs Unscheduled
     activeTasks = [];
@@ -871,23 +929,44 @@ function renderUnscheduledDrawer() {
 
 function openEditModal(task) {
   const modal = document.getElementById("taskModalOverlay");
+  const modalTitle = document.getElementById("modalTitle");
   const titleInput = document.getElementById("taskName");
   const startInput = document.getElementById("taskStartDate");
   const dueInput = document.getElementById("taskDueDate");
+  const rowLabel = document.getElementById("taskRowLabel");
   const assigneeSelect = document.getElementById("taskAssignee");
   const colorSelect = document.getElementById("taskColor");
   const idInput = document.getElementById("editCardId");
   const completeBtn = document.getElementById("completeTaskBtn");
   const unscheduleBtn = document.getElementById("unscheduleTaskBtn");
+  const archiveBtn = document.getElementById("archiveTaskBtn");
+  const saveBtn = document.getElementById("saveTaskBtn");
+
+  const isNew = Boolean(task.isNewScheduled || (task.id && task.id.startsWith("custom_")) || (task.id && task.id.startsWith("new_")));
 
   idInput.value = task.id;
-  titleInput.value = task.name;
+  titleInput.value = task.name || "";
+  titleInput.placeholder = isNew ? "Enter task name..." : "e.g. Website design";
   startInput.value = task.startDate || "";
   dueInput.value = task.dueDate || "";
   colorSelect.value = task.color || "yellow";
 
-  // Reflect completion status on complete button
+  // Dynamic Modal Title & Save Button Text
+  if (modalTitle) {
+    modalTitle.textContent = isNew ? "New Task" : "Edit Task Details";
+  }
+  if (saveBtn) {
+    saveBtn.textContent = isNew ? "Create & Sync to Trello" : "Save & Sync to Trello";
+  }
+
+  // Row / Target field label: explicitly set to "Label" in label grouping mode
+  if (rowLabel) {
+    rowLabel.textContent = currentViewMode === "label" ? "Label" : (currentViewMode === "list" ? "Trello List" : "Assignee");
+  }
+
+  // Reflect completion status or hide actions completely for new tasks
   if (completeBtn) {
+    completeBtn.style.display = isNew ? "none" : "inline-flex";
     if (task.isCompleted) {
       completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Completed</span>`;
       completeBtn.style.opacity = "0.85";
@@ -897,26 +976,70 @@ function openEditModal(task) {
     }
   }
 
-  // If this card is in unscheduled drawer and being scheduled, hide unschedule & archive buttons
   if (unscheduleBtn) {
-    unscheduleBtn.style.display = task.isNewScheduled ? "none" : "inline-flex";
+    unscheduleBtn.style.display = isNew ? "none" : "inline-flex";
   }
-  const archiveBtn = document.getElementById("archiveTaskBtn");
   if (archiveBtn) {
-    archiveBtn.style.display = task.isNewScheduled ? "none" : "inline-flex";
+    archiveBtn.style.display = isNew ? "none" : "inline-flex";
   }
 
+  // Populate Row / Target dropdown
   assigneeSelect.innerHTML = "";
-  activeRows.forEach(r => {
-    if (r.id === "milestone" || r.id === "empty_info") return;
-    const opt = document.createElement("option");
-    opt.value = r.id;
-    opt.textContent = r.name;
-    if (r.id === task.rowId) opt.selected = true;
-    assigneeSelect.appendChild(opt);
-  });
+
+  if (currentViewMode === "label") {
+    // Show ALL board labels on the dropdown so user can choose any label
+    currentBoardLabels.forEach(lbl => {
+      const opt = document.createElement("option");
+      opt.value = lbl.id;
+      const emoji = getLabelEmoji(lbl.color);
+      opt.textContent = `${emoji} ${lbl.name}`;
+      if (task.rowId === lbl.id || task.labelId === lbl.id) {
+        opt.selected = true;
+      }
+      assigneeSelect.appendChild(opt);
+    });
+
+    // Also include "(No Label)" option at the end
+    const noOpt = document.createElement("option");
+    noOpt.value = "no_label";
+    noOpt.textContent = "🏷️ (No Label)";
+    if (task.rowId === "no_label" || (!task.rowId && !currentBoardLabels.some(l => l.id === task.rowId))) {
+      noOpt.selected = true;
+    }
+    assigneeSelect.appendChild(noOpt);
+  } else if (currentViewMode === "list") {
+    currentBoardLists.forEach(l => {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = `📋 ${l.name}`;
+      if (l.id === task.rowId || l.id === task.listId) {
+        opt.selected = true;
+      }
+      assigneeSelect.appendChild(opt);
+    });
+  } else {
+    activeRows.forEach(r => {
+      if (r.id === "milestone" || r.id === "empty_info") return;
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      opt.textContent = r.name;
+      if (r.id === task.rowId) opt.selected = true;
+      assigneeSelect.appendChild(opt);
+    });
+  }
+
+  // Auto-sync color theme if new task and chosen label has a defined color
+  if (isNew && currentViewMode === "label" && assigneeSelect.value) {
+    const chosenLbl = currentBoardLabels.find(l => l.id === assigneeSelect.value);
+    if (chosenLbl && chosenLbl.color) {
+      colorSelect.value = mapTrelloColorToPillColor(chosenLbl.color);
+    }
+  }
 
   modal.classList.add("open");
+  if (isNew) {
+    setTimeout(() => titleInput.focus(), 50);
+  }
 }
 
 function closeEditModal() {
@@ -984,18 +1107,35 @@ function bindUIEvents() {
   document.getElementById("closeModalBtn").addEventListener("click", closeEditModal);
   document.getElementById("cancelModalBtn").addEventListener("click", closeEditModal);
 
+  // Dynamic color matching when changing label in modal
+  const assigneeSelect = document.getElementById("taskAssignee");
+  if (assigneeSelect) {
+    assigneeSelect.addEventListener("change", (e) => {
+      if (currentViewMode === "label") {
+        const selectedLabel = currentBoardLabels.find(l => l.id === e.target.value);
+        if (selectedLabel && selectedLabel.color) {
+          const colorSelect = document.getElementById("taskColor");
+          if (colorSelect) colorSelect.value = mapTrelloColorToPillColor(selectedLabel.color);
+        }
+      }
+    });
+  }
+
   document.getElementById("taskForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = document.getElementById("editCardId").value;
-    const name = document.getElementById("taskName").value;
+    const name = document.getElementById("taskName").value.trim() || "New Task";
     let start = document.getElementById("taskStartDate").value;
     let due = document.getElementById("taskDueDate").value;
     const rowId = document.getElementById("taskAssignee").value;
     const color = document.getElementById("taskColor").value;
+    const isNew = id.startsWith("custom_") || id.startsWith("new_");
 
-    // If both dates are empty/cleared -> unschedule the task!
+    // If both dates are empty/cleared on an existing task -> unschedule the task!
     if (!start && !due) {
-      await handleUnscheduleTask();
+      if (!isNew) {
+        await handleUnscheduleTask();
+      }
       return;
     }
 
@@ -1008,34 +1148,124 @@ function bindUIEvents() {
       due = start;
     }
 
-    const existingIndex = activeTasks.findIndex(t => t.id === id);
-    if (existingIndex !== -1) {
-      activeTasks[existingIndex].name = name;
-      activeTasks[existingIndex].startDate = start;
-      activeTasks[existingIndex].dueDate = due;
-      activeTasks[existingIndex].rowId = rowId;
-      activeTasks[existingIndex].color = color;
-    } else {
+    const syncStatus = document.getElementById("syncStatus");
+    if (syncStatus) {
+      syncStatus.innerHTML = `<span class="status-dot" style="background:#F59E0B"></span><span class="status-text">${isNew ? "Creating..." : "Saving..."}</span>`;
+    }
+
+    if (isNew) {
+      // Find suitable default list (e.g. Incoming Tasks / To Start or first non-completed list)
+      const defaultList = currentBoardLists.find(l => {
+        const ln = (l.name || "").toLowerCase();
+        return (ln.includes("incoming") || ln.includes("start") || ln.includes("work") || ln.includes("todo") || ln.includes("to do")) && !ln.includes("completed");
+      }) || currentBoardLists[0];
+
+      const listId = defaultList ? defaultList.id : (currentBoardLists[0] ? currentBoardLists[0].id : "");
+      let realCardId = id;
+      let cardLabels = [];
+
+      try {
+        let postUrl = `https://api.trello.com/1/cards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&idList=${listId}&name=${encodeURIComponent(name)}&start=${start}&due=${due}`;
+        if (currentViewMode === "label" && rowId && rowId !== "no_label") {
+          postUrl += `&idLabels=${rowId}`;
+        }
+        const createRes = await fetch(postUrl, { method: "POST" });
+        if (createRes.ok) {
+          const createdCard = await createRes.json();
+          realCardId = createdCard.id;
+          cardLabels = createdCard.labels || [];
+        }
+      } catch (err) {
+        console.error("Failed to create card on Trello:", err);
+      }
+
       activeTasks.push({
-        id: id || `custom_${Date.now()}`,
+        id: realCardId,
         name: name,
         startDate: start,
         dueDate: due,
         rowId: rowId,
         color: color,
         track: 0,
+        listId: listId,
+        listName: defaultList ? defaultList.name : "",
+        labelId: rowId,
+        labels: cardLabels,
         isCompleted: false
       });
       unscheduledTasks = unscheduledTasks.filter(u => u.id !== id);
-    }
+    } else {
+      const existingIndex = activeTasks.findIndex(t => t.id === id);
+      if (existingIndex !== -1) {
+        activeTasks[existingIndex].name = name;
+        activeTasks[existingIndex].startDate = start;
+        activeTasks[existingIndex].dueDate = due;
+        activeTasks[existingIndex].rowId = rowId;
+        activeTasks[existingIndex].color = color;
+      } else {
+        activeTasks.push({
+          id: id,
+          name: name,
+          startDate: start,
+          dueDate: due,
+          rowId: rowId,
+          color: color,
+          track: 0,
+          isCompleted: false
+        });
+        unscheduledTasks = unscheduledTasks.filter(u => u.id !== id);
+      }
 
-    // Sync directly to Trello API
-    if (!id.startsWith("custom_")) {
+      // Sync directly to Trello API
       try {
-        const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(name)}&start=${start}&due=${due}`;
+        let putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&name=${encodeURIComponent(name)}&start=${start}&due=${due}`;
+        if (currentViewMode === "label") {
+          putUrl += `&idLabels=${rowId !== "no_label" ? rowId : ""}`;
+        }
         await fetch(putUrl, { method: "PUT" });
       } catch (err) {
         console.error("Failed to sync card update to Trello:", err);
+      }
+    }
+
+    // Ensure row exists in activeRows if in label mode
+    if (currentViewMode === "label") {
+      if (!activeRows.some(r => r.id === rowId)) {
+        const matchedLabel = currentBoardLabels.find(l => l.id === rowId);
+        if (matchedLabel) {
+          activeRows.push({
+            id: matchedLabel.id,
+            name: matchedLabel.name,
+            color: matchedLabel.color || "blue_light",
+            isLabel: true,
+            taskCount: 1
+          });
+        } else if (rowId === "no_label") {
+          activeRows.push({
+            id: "no_label",
+            name: "General / No Label",
+            color: "blue_light",
+            isLabel: true,
+            taskCount: 1
+          });
+        }
+      }
+
+      // Recalculate taskCount per row & filter rows with > 0 tasks
+      activeRows.forEach(r => {
+        r.taskCount = activeTasks.filter(t => t.rowId === r.id).length;
+      });
+      activeRows = activeRows.filter(r => r.taskCount > 0);
+      if (activeRows.length === 0) {
+        activeRows = [
+          { id: "empty_info", name: "No Scheduled Tasks", isLabel: true, color: "blue_light" }
+        ];
+      } else {
+        activeRows.sort((a, b) => {
+          if (a.id === "no_label") return 1;
+          if (b.id === "no_label") return -1;
+          return a.name.localeCompare(b.name);
+        });
       }
     }
 
@@ -1043,6 +1273,10 @@ function bindUIEvents() {
     renderTimeline();
     renderUnscheduledDrawer();
     closeEditModal();
+
+    if (syncStatus) {
+      syncStatus.innerHTML = `<span class="status-dot"></span><span class="status-text">Connected</span>`;
+    }
   });
 
   // Action Buttons
@@ -1064,12 +1298,21 @@ function bindUIEvents() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 2);
 
+      let defaultRowId = "";
+      if (currentViewMode === "label") {
+        defaultRowId = (activeRows[0] && activeRows[0].id !== "empty_info")
+          ? activeRows[0].id
+          : (currentBoardLabels[0]?.id || "no_label");
+      } else {
+        defaultRowId = activeRows[0] ? activeRows[0].id : "";
+      }
+
       openEditModal({
         id: `custom_${Date.now()}`,
-        name: "New Task",
+        name: "",
         startDate: formatLocalDate(today),
         dueDate: formatLocalDate(tomorrow),
-        rowId: activeRows[0] ? activeRows[0].id : "",
+        rowId: defaultRowId,
         color: "yellow",
         isNewScheduled: true
       });
