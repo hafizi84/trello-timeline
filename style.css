@@ -381,7 +381,8 @@ body {
 .timeline-wrapper {
   display: flex;
   flex: 1;
-  height: calc(100vh - var(--header-height));
+  height: auto;
+  min-height: 0;
   width: 100vw;
   overflow: hidden;
   position: relative;
@@ -1459,8 +1460,10 @@ body.is-dragging-task {
 }
 
 @media (max-width: 768px) {
+  .form-row,
   .form-row.form-row-3 {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -1698,3 +1701,443 @@ body.is-dragging-task {
   box-shadow: 0 0 8px #38BDF8;
 }
 
+
+/* ==========================================================================
+   Comprehensive Responsive Architecture (Mobile, Tablet, Desktop)
+   ========================================================================== */
+
+/* Button Text Visibility Defaults (Desktop) */
+.btn-text-full {
+  display: inline;
+}
+.btn-text-compact {
+  display: none;
+}
+
+/* Sidebar Toggle Button (Hidden on Desktop) */
+.sidebar-toggle-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+.sidebar-toggle-btn:hover {
+  background-color: #F1F5F9;
+  color: #0F172A;
+  border-color: #CBD5E1;
+}
+.sidebar-toggle-btn.active {
+  background-color: #E0F2FE;
+  color: #0284C7;
+  border-color: #BAE6FD;
+}
+.sidebar-toggle-btn svg {
+  flex-shrink: 0;
+}
+
+/* Smooth Sidebar Transitions & Responsive Collapse */
+.timeline-sidebar {
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              min-width 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              max-width 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.18s ease;
+}
+.timeline-sidebar.collapsed-mobile {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  border-right: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+/* Inertial Touch-Scrolling Engine */
+.timeline-grid-container {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+.sidebar-rows-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==========================================================================
+   Tablet Breakpoint (769px - 1024px) - e.g. iPad, iPad Air, Surface Pro
+   ========================================================================== */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 110px;
+    --col-day-width: 115px;
+  }
+  .top-bar {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    row-gap: 8px;
+    column-gap: 10px;
+  }
+  .top-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .brand-divider {
+    display: none;
+  }
+  .control-label {
+    display: none;
+  }
+  .pill-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+  }
+  .top-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .sidebar-toggle-btn {
+    display: inline-flex;
+  }
+  .sidebar-toggle-btn .btn-text,
+  .refresh-btn span,
+  .sync-status .status-text {
+    display: none;
+  }
+  .refresh-btn,
+  .sidebar-toggle-btn {
+    padding: 0 9px;
+    height: 32px;
+  }
+  .sync-status {
+    padding: 0 6px;
+    min-width: 24px;
+    height: 32px;
+    justify-content: center;
+  }
+  .secondary-btn {
+    padding: 0 10px;
+    height: 32px;
+    font-size: 0.78rem;
+  }
+  .primary-btn {
+    padding: 0 12px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+  .top-center {
+    order: 3;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 6px;
+    border-top: 1px solid #F1F5F9;
+  }
+  .sidebar-corner-cell {
+    font-size: 0.72rem;
+  }
+  .sidebar-row-cell {
+    padding: 5px;
+  }
+  .sidebar-avatar,
+  .sidebar-avatar-placeholder {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+  .sidebar-name {
+    font-size: 0.75rem;
+  }
+}
+
+/* ==========================================================================
+   Mobile Breakpoint (<= 768px) - e.g. iPhone 14/15, Pixel, Galaxy
+   ========================================================================== */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 86px;
+    --col-day-width: 96px;
+    --row-height: 74px;
+  }
+
+  /* Compact button text toggle */
+  .btn-text-full {
+    display: none;
+  }
+  .btn-text-compact {
+    display: inline;
+  }
+
+  .top-bar {
+    height: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Row 1: Brand (left) & Group by Toggle Pills (right) */
+  .top-left {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 6px;
+  }
+  .brand {
+    font-size: 1.05rem;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+  .trello-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .brand-title {
+    font-size: 0.95rem;
+  }
+  .group-toggle-wrap {
+    margin-left: auto;
+    gap: 4px;
+  }
+  .control-label {
+    display: none;
+  }
+  .pill-group {
+    padding: 2px;
+    gap: 2px;
+  }
+  .pill-btn {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+  }
+
+  /* Row 2: Date Navigation Controls Centered */
+  .top-center {
+    width: 100%;
+    order: 2;
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+    border-top: 1px solid #F1F5F9;
+    border-bottom: 1px solid #F1F5F9;
+  }
+  .nav-date-controls {
+    gap: 6px;
+  }
+  .nav-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .today-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+  }
+  .date-range-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  /* Row 3: Action Buttons & Zoom Controls Perfectly Spaced */
+  .top-right {
+    width: 100%;
+    order: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    margin-left: 0;
+    flex-wrap: nowrap;
+  }
+  .zoom-controls {
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .zoom-btn {
+    padding: 3px 7px;
+    font-size: 0.72rem;
+  }
+  .refresh-btn span,
+  .sidebar-toggle-btn .btn-text,
+  .sync-status .status-text {
+    display: none;
+  }
+  .refresh-btn,
+  .sidebar-toggle-btn {
+    padding: 0 8px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+  .secondary-btn {
+    padding: 0 8px;
+    height: 30px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .secondary-btn svg {
+    margin-right: 2px;
+  }
+  .primary-btn {
+    padding: 0 10px;
+    height: 30px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .sync-status {
+    padding: 0 5px;
+    min-width: 20px;
+    height: 30px;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+
+  /* Compact Sidebar on Mobile */
+  .sidebar-corner-cell {
+    height: 44px;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+  }
+  .sidebar-row-cell {
+    min-height: 68px;
+    padding: 4px 2px;
+    gap: 2px;
+  }
+  .sidebar-avatar,
+  .sidebar-avatar-placeholder {
+    width: 26px;
+    height: 26px;
+    font-size: 0.72rem;
+  }
+  .sidebar-label-tag {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+  .sidebar-label-tag svg {
+    width: 12px;
+    height: 12px;
+  }
+  .sidebar-name {
+    font-size: 0.68rem;
+    line-height: 1.15;
+    max-width: 80px;
+  }
+
+  /* Compact Timeline Header & Pills on Mobile */
+  .timeline-header-row {
+    height: 44px;
+  }
+  .timeline-day-header {
+    font-size: 0.76rem;
+    gap: 4px;
+  }
+  .task-pill {
+    font-size: 0.7rem;
+    height: 26px;
+    line-height: 26px;
+    padding: 0 7px;
+  }
+  .task-pill-inner {
+    gap: 4px;
+  }
+  .task-pill-title {
+    font-size: 0.7rem;
+  }
+
+  /* Mobile Responsive Modals (Bottom Sheet / Scrollable Dialog) */
+  .modal-overlay {
+    padding: 8px;
+    align-items: center;
+  }
+  .modal-content {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+    padding: 18px 16px;
+    border-radius: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-header h2 {
+    font-size: 1.15rem;
+  }
+  .modal-type-tabs {
+    margin-bottom: 14px;
+  }
+  .modal-tab-btn {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+    padding: 9px 12px;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+  .modal-actions-left {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+  }
+  .modal-actions-right {
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .modal-actions button {
+    width: 100%;
+    height: 40px;
+    justify-content: center;
+  }
+
+  /* Unscheduled Drawer Mobile Bottom Sheet */
+  .unscheduled-drawer {
+    max-height: 60vh;
+  }
+  .drawer-header {
+    padding: 10px 14px;
+  }
+  .unscheduled-list {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .unscheduled-card {
+    min-width: 220px;
+  }
+}

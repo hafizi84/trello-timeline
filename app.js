@@ -2159,6 +2159,16 @@ function bindUIEvents() {
   document.getElementById("archiveTaskBtn")?.addEventListener("click", handleArchiveTask);
   document.getElementById("deleteHolidayBtn")?.addEventListener("click", handleDeleteHoliday);
   document.getElementById("refreshBtn")?.addEventListener("click", handleRefreshTimeline);
+  document.getElementById("toggleSidebarBtn")?.addEventListener("click", () => {
+    const sb = document.getElementById("timelineSidebar");
+    const btn = document.getElementById("toggleSidebarBtn");
+    if (sb) {
+      sb.classList.toggle("collapsed-mobile");
+      btn?.classList.toggle("active");
+      const isCollapsed = sb.classList.contains("collapsed-mobile");
+      showNavToast(isCollapsed ? "◀ Row labels hidden (Full view)" : "▶ Row labels visible");
+    }
+  });
   document.getElementById("clearStartDateBtn")?.addEventListener("click", () => {
     document.getElementById("taskStartDate").value = "";
   });
