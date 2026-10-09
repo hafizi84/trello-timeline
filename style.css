@@ -104,6 +104,18 @@ body {
   font-size: 1.15rem;
   color: #111827;
   letter-spacing: -0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.brand:hover {
+  opacity: 0.85;
+}
+
+.brand:active {
+  transform: scale(0.98);
 }
 
 .trello-icon {
