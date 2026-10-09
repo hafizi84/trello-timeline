@@ -25,6 +25,7 @@ let activeTasks = [];
 let activeRows = [];
 let unscheduledTasks = [];
 let dependencies = [];
+let rowNavIndexes = {}; // Tracks focused task index per row for double-click cycling
 
 function getCenteredDate(baseDate, offsetDays) {
   const d = new Date(baseDate);
@@ -146,6 +147,7 @@ async function fetchBoardData(boardId) {
     activeTasks = [];
     unscheduledTasks = [];
     dependencies = [];
+    rowNavIndexes = {};
     const scheduledCards = [];
 
     cards.forEach((card, idx) => {
@@ -414,6 +416,10 @@ function renderTimeline() {
   activeRows.forEach(row => {
     const rowEl = document.createElement("div");
     rowEl.className = `sidebar-row-cell ${row.isLabel ? "is-label-row" : ""} ${row.isMilestone ? "is-milestone-row" : ""}`;
+    rowEl.dataset.rowId = row.id;
+
+    const rowTasksCount = activeTasks.filter(t => t.rowId === row.id).length;
+    rowEl.title = `${row.name} (${rowTasksCount} scheduled task${rowTasksCount === 1 ? '' : 's'})\n💡 Double-click to cycle through tasks (latest to oldest)`;
 
     if (row.isMilestone) {
       rowEl.innerHTML = `
@@ -793,6 +799,105 @@ function bindUIEvents() {
     });
   }
 
+  // Double-click on left sidebar row to jump to latest/previous scheduled tasks
+  const sidebarRows = document.getElementById("sidebarRows");
+  if (sidebarRows) {
+    sidebarRows.addEventListener("dblclick", (e) => {
+      const rowEl = e.target.closest(".sidebar-row-cell");
+      if (rowEl && rowEl.dataset.rowId) {
+        jumpToRowTask(rowEl.dataset.rowId);
+      }
+    });
+  }
+
   document.getElementById("timelineScrollContainer").addEventListener("scroll", drawDependencyCurves);
   window.addEventListener("resize", drawDependencyCurves);
+}
+
+// ==========================================================================
+// Double-Click Label Navigation Engine
+// Moves the timeline date to show the latest scheduled task for the label,
+// and subsequent double-clicks move to the next previous scheduled task.
+// ==========================================================================
+function jumpToRowTask(rowId) {
+  const tasks = activeTasks.filter(t => t.rowId === rowId);
+  if (!tasks || tasks.length === 0) {
+    showNavToast("No scheduled tasks found under this label");
+    return;
+  }
+
+  // Sort tasks strictly descending: latest/newest date first, down to oldest date
+  tasks.sort((a, b) => {
+    const dateA = new Date((a.dueDate || a.startDate) + "T00:00:00").getTime();
+    const dateB = new Date((b.dueDate || b.startDate) + "T00:00:00").getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    const startA = new Date((a.startDate || a.dueDate) + "T00:00:00").getTime();
+    const startB = new Date((b.startDate || b.dueDate) + "T00:00:00").getTime();
+    return startB - startA;
+  });
+
+  // Cycle through tasks: 1st double-click = 0 (latest), 2nd = 1 (next previous), etc.
+  if (rowNavIndexes[rowId] === undefined) {
+    rowNavIndexes[rowId] = 0;
+  } else {
+    rowNavIndexes[rowId] = (rowNavIndexes[rowId] + 1) % tasks.length;
+  }
+
+  const currentIndex = rowNavIndexes[rowId];
+  const targetTask = tasks[currentIndex];
+  const targetDateStr = targetTask.startDate || targetTask.dueDate;
+  if (!targetDateStr) return;
+
+  const targetDate = new Date(targetDateStr + "T00:00:00");
+
+  // Center timeline on this task (-2 days offset so task appears comfortably in view)
+  viewStartDate = getCenteredDate(targetDate, -2);
+  renderTimeline();
+
+  // Visual feedback on the double-clicked row cell
+  const clickedRowEl = document.querySelector(`.sidebar-row-cell[data-row-id="${rowId}"]`);
+  if (clickedRowEl) {
+    clickedRowEl.classList.add("row-nav-flash");
+    setTimeout(() => clickedRowEl.classList.remove("row-nav-flash"), 400);
+  }
+
+  // Visual feedback: focus & pulsing outline on the target task pill
+  setTimeout(() => {
+    const pillEl = document.getElementById(`task-pill-${targetTask.id}`);
+    if (pillEl) {
+      pillEl.classList.add("is-nav-focused");
+      const scrollContainer = document.getElementById("timelineScrollContainer");
+      if (scrollContainer) {
+        const pillLeft = pillEl.offsetLeft;
+        scrollContainer.scrollTo({ left: Math.max(0, pillLeft - 180), behavior: "smooth" });
+      }
+      setTimeout(() => {
+        pillEl.classList.remove("is-nav-focused");
+      }, 2500);
+    }
+  }, 80);
+
+  // Friendly date and counter toast
+  const formattedDate = targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const stepLabel = currentIndex === 0 ? "Latest task" : `Previous task (${currentIndex + 1}/${tasks.length})`;
+  showNavToast(`📍 ${stepLabel}: "${targetTask.name}" • ${formattedDate}`);
+}
+
+let toastTimer = null;
+function showNavToast(message) {
+  let toast = document.getElementById("timelineNavToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "timelineNavToast";
+    toast.className = "timeline-nav-toast";
+    toast.innerHTML = `<span class="timeline-nav-toast-dot"></span><span id="timelineNavToastText"></span>`;
+    document.body.appendChild(toast);
+  }
+  document.getElementById("timelineNavToastText").textContent = message;
+  toast.classList.add("show");
+
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2800);
 }

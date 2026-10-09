@@ -958,3 +958,79 @@ body {
 .danger-btn:hover {
   background-color: #FEE2E2;
 }
+
+/* Double-click Navigation & Focus States */
+.sidebar-row-cell {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sidebar-row-cell:hover {
+  background-color: #F8FAFC;
+}
+
+.sidebar-row-cell.row-nav-flash {
+  background-color: #E0F2FE !important;
+  transition: background-color 0.15s ease;
+}
+
+/* Pulsing highlight for focused task pill */
+@keyframes taskPillPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 121, 191, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 121, 191, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 121, 191, 0);
+    transform: scale(1);
+  }
+}
+
+.task-pill.is-nav-focused {
+  animation: taskPillPulse 0.75s ease-in-out 3;
+  outline: 2.5px solid #0079BF;
+  outline-offset: 1px;
+  z-index: 50 !important;
+}
+
+/* Sleek Floating Navigation Toast */
+.timeline-nav-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(24px);
+  background: rgba(17, 24, 39, 0.92);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.timeline-nav-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.timeline-nav-toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #38BDF8;
+  box-shadow: 0 0 8px #38BDF8;
+}
+
