@@ -667,8 +667,8 @@ function openEditModal(task) {
   // Reflect completion status on complete button
   if (completeBtn) {
     if (task.isCompleted) {
-      completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Completed ✓</span>`;
-      completeBtn.style.opacity = "0.75";
+      completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Completed</span>`;
+      completeBtn.style.opacity = "0.85";
     } else {
       completeBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Task Completed</span>`;
       completeBtn.style.opacity = "1";

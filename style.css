@@ -848,8 +848,8 @@ body {
 .modal-content {
   background-color: #FFFFFF;
   border-radius: 14px;
-  width: 90%;
-  max-width: 520px;
+  width: 92%;
+  max-width: 680px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   border: 1px solid #E5E7EB;
@@ -933,36 +933,56 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
-  padding-top: 16px;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 20px;
   border-top: 1px solid #E5E7EB;
 }
 
+.modal-actions-left,
 .modal-actions-right {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.modal-actions-left {
-  display: flex;
+/* Enforce uniform height, vertical alignment, and zero text-wrapping on all modal buttons */
+.modal-actions button {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  line-height: 1;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.modal-actions button svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+.modal-actions button span {
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .complete-btn {
   background-color: #ECFDF5;
   border: 1px solid #A7F3D0;
   color: #059669;
-  padding: 7px 13px;
-  border-radius: 8px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  padding: 0 16px;
+  gap: 7px;
 }
 
 .complete-btn:hover {
@@ -976,22 +996,43 @@ body {
   background-color: #FFFBEB;
   border: 1px solid #FDE68A;
   color: #D97706;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  padding: 0 14px;
+  gap: 7px;
 }
 
 .unschedule-btn:hover {
   background-color: #FEF3C7;
   border-color: #FCD34D;
   color: #B45309;
+}
+
+.modal-actions-right .secondary-btn {
+  background-color: #F3F4F6;
+  border: 1px solid #E5E7EB;
+  color: #374151;
+  padding: 0 18px;
+}
+
+.modal-actions-right .secondary-btn:hover {
+  background-color: #E5E7EB;
+  color: #111827;
+}
+
+.modal-actions-right .primary-btn {
+  background-color: var(--brand-blue);
+  border: 1px solid var(--brand-blue);
+  color: #FFFFFF;
+  padding: 0 20px;
+  font-weight: 700;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 121, 191, 0.25);
+}
+
+.modal-actions-right .primary-btn:hover {
+  background-color: var(--brand-blue-hover);
+  border-color: var(--brand-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 121, 191, 0.35);
 }
 
 .label-with-action {
