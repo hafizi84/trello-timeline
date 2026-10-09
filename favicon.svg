@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="trelloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0079BF"/>
+      <stop offset="100%" stop-color="#0052CC"/>
+    </linearGradient>
+    <filter id="pillShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Trello Squircle Canvas -->
+  <rect width="64" height="64" rx="14" fill="url(#trelloGrad)"/>
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
+
+  <!-- Vertical Timeline Guides -->
+  <line x1="22" y1="10" x2="22" y2="54" stroke="rgba(255,255,255,0.14)" stroke-width="1.5" stroke-dasharray="2,2"/>
+  <line x1="42" y1="10" x2="42" y2="54" stroke="rgba(255,255,255,0.14)" stroke-width="1.5" stroke-dasharray="2,2"/>
+
+  <!-- Staggered Timeline Task Bars -->
+  <!-- Top: White Bar -->
+  <rect x="9" y="13" width="28" height="9" rx="4.5" fill="#FFFFFF" filter="url(#pillShadow)"/>
+
+  <!-- Middle: Cyan/Sky Blue Bar -->
+  <rect x="23" y="27" width="32" height="9" rx="4.5" fill="#38BDF8" filter="url(#pillShadow)"/>
+
+  <!-- Bottom: Warm Amber Bar -->
+  <rect x="13" y="41" width="30" height="9" rx="4.5" fill="#FBBF24" filter="url(#pillShadow)"/>
+
+  <!-- Live "Today" Vertical Red Marker & Pin Dot -->
+  <line x1="33" y1="9" x2="33" y2="55" stroke="#EF4444" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="33" cy="9" r="3.2" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.2"/>
+</svg>
