@@ -1067,7 +1067,7 @@ function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
   const effectiveColor = getEffectiveTaskColor(task);
 
   const checkHtml = isCompleted
-    ? `<span class="task-check-circle" title="100% Completed">✓</span>`
+    ? `<span class="task-check-circle" title="100% Completed"><svg viewBox="0 0 12 12" width="8.5" height="8.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 6 4.8 8.5 9.5 3.5"></polyline></svg></span>`
     : (isOverdue ? `<span class="task-overdue-icon" title="Overdue">⚠️</span>` : ``);
 
   const pill = document.createElement("div");

@@ -967,15 +967,34 @@ body.is-dragging-task {
 }
 
 .task-check-circle {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  max-width: 15px;
+  max-height: 15px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 15px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background-color: #D97706;
+  background-color: #16A34A;
   color: #FFFFFF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  box-sizing: border-box;
+  margin-right: 2px;
+}
+
+.task-check-circle svg {
+  width: 8.5px;
+  height: 8.5px;
+  display: block;
+  stroke: #FFFFFF;
+  stroke-width: 2.2;
 }
 
 /* Automatic State-based Color Overrides */
@@ -1022,6 +1041,7 @@ body.is-dragging-task {
   justify-content: center;
   margin-right: 3px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 /* Stacking Sub-Tracks inside a single row */
