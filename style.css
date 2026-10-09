@@ -550,6 +550,12 @@ body {
   font-weight: 600;
   color: #6B7280;
   user-select: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.timeline-day-header:hover {
+  background-color: #F1F4F9;
 }
 
 /* Highlighted current/active day badge (Wed 11 in screenshot) */
@@ -661,6 +667,7 @@ body {
   border-right: 1px solid var(--border-color);
   background-color: #FFFFFF;
   transition: background-color 0.15s ease;
+  cursor: pointer;
 }
 
 .grid-col-cell:hover {

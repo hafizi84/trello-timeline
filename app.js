@@ -475,9 +475,10 @@ function renderTimeline() {
 
     const dayCol = document.createElement("div");
     dayCol.className = `timeline-day-header ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""}`;
-    if (isWeekend) {
-      dayCol.title = `${dayName} ${dayNum} (Weekend)`;
-    }
+    dayCol.dataset.date = dayStr;
+    dayCol.title = isWeekend 
+      ? `${dayName} ${dayNum} (Weekend)\n💡 Double-click to create new task on this date` 
+      : `${dayName} ${dayNum}\n💡 Double-click to create new task on this date`;
     dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span>`;
     headerRow.appendChild(dayCol);
   });
@@ -545,9 +546,11 @@ function renderTimeline() {
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       const cell = document.createElement("div");
       cell.className = `grid-col-cell ${isToday ? "is-today-col" : ""} ${isWeekend ? "is-weekend-col" : ""}`;
-      if (isWeekend) {
-        cell.title = "Weekend";
-      }
+      cell.dataset.date = dayStr;
+      cell.dataset.rowId = row.id;
+      cell.title = isWeekend 
+        ? `Weekend (${dayStr})\n💡 Double-click to create new task on this date` 
+        : `${dayStr}\n💡 Double-click to create new task on this date`;
       gridRow.appendChild(cell);
     });
 
@@ -1340,8 +1343,74 @@ function bindUIEvents() {
     });
   }
 
+  // Double-click on any top header date box to create new task on that date
+  const headerRow = document.getElementById("timelineHeaderRow");
+  if (headerRow) {
+    headerRow.addEventListener("dblclick", (e) => {
+      const dayCol = e.target.closest(".timeline-day-header");
+      if (dayCol && dayCol.dataset.date) {
+        handleQuickNewTaskOnDate(dayCol.dataset.date);
+      }
+    });
+  }
+
+  // Double-click on any grid date box in the timeline to create new task on that date
+  const gridBody = document.getElementById("timelineGridBody");
+  if (gridBody) {
+    gridBody.addEventListener("dblclick", (e) => {
+      // Ignore if user double-clicked on a task pill itself
+      if (e.target.closest(".task-pill")) return;
+
+      const cell = e.target.closest(".grid-col-cell");
+      if (cell && cell.dataset.date) {
+        const targetRowId = cell.dataset.rowId || "";
+        handleQuickNewTaskOnDate(cell.dataset.date, targetRowId);
+      }
+    });
+  }
+
   document.getElementById("timelineScrollContainer").addEventListener("scroll", drawDependencyCurves);
   window.addEventListener("resize", drawDependencyCurves);
+}
+
+// ==========================================================================
+// Quick New Task On Date Creator
+// Triggered by double-clicking on any date box (header or grid cell)
+// ==========================================================================
+function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
+  const startDate = new Date(targetDateStr + "T00:00:00");
+  const dueDate = new Date(startDate);
+  dueDate.setDate(dueDate.getDate() + 2); // 2-day span by default
+
+  let rowId = targetRowId;
+  if (!rowId || rowId === "empty_info") {
+    if (currentViewMode === "label") {
+      rowId = (activeRows[0] && activeRows[0].id !== "empty_info")
+        ? activeRows[0].id
+        : (currentBoardLabels[0]?.id || "no_label");
+    } else {
+      rowId = activeRows[0] ? activeRows[0].id : "";
+    }
+  }
+
+  // Auto-match task color if the label has a default color
+  let taskColor = "yellow";
+  if (currentViewMode === "label" && rowId) {
+    const chosenLbl = currentBoardLabels.find(l => l.id === rowId);
+    if (chosenLbl && chosenLbl.color) {
+      taskColor = mapTrelloColorToPillColor(chosenLbl.color);
+    }
+  }
+
+  openEditModal({
+    id: `custom_${Date.now()}`,
+    name: "",
+    startDate: formatLocalDate(startDate),
+    dueDate: formatLocalDate(dueDate),
+    rowId: rowId,
+    color: taskColor,
+    isNewScheduled: true
+  });
 }
 
 // ==========================================================================
