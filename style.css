@@ -1769,7 +1769,7 @@ body.is-dragging-task {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
-  scroll-behavior: smooth;
+  
 }
 .sidebar-rows-container {
   -webkit-overflow-scrolling: touch;

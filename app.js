@@ -26,6 +26,7 @@ let viewStartDate = getCenteredDate(new Date(), -PAST_BUFFER_DAYS); // Buffer st
 let timelineDays = [];
 let isInitialTimelineLoad = true;
 let isBufferExpanding = false;
+let isProgrammaticScrolling = false;
 let activeTasks = [];
 let activeRows = [];
 let unscheduledTasks = [];
@@ -779,8 +780,12 @@ function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
   updateTodayMarkerPosition();
 
   if (shouldCenterToday || isInitialTimelineLoad) {
-    isInitialTimelineLoad = false;
     scrollToToday(false);
+    requestAnimationFrame(() => {
+      scrollToToday(false);
+      updateTodayMarkerPosition();
+      updateDateRangeLabelFromScroll();
+    });
   } else if (scrollContainer && preservedScrollLeft > 0) {
     scrollContainer.scrollLeft = preservedScrollLeft;
   }
@@ -794,32 +799,65 @@ function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
   }, 50);
 }
 
+// Dynamically resolves exact column width from live DOM or CSS token across all viewports
+function getTimelineColWidth() {
+  const headerCol = document.querySelector(".timeline-day-header");
+  if (headerCol && headerCol.offsetWidth > 0) {
+    return headerCol.offsetWidth;
+  }
+  const rootVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--col-day-width"));
+  if (!isNaN(rootVal) && rootVal > 0) return rootVal;
+  return zoomMode === "days" ? 140 : 100;
+}
+
 // Smoothly scrolls timeline view to center on Today's date column
 function scrollToToday(smooth = true) {
   const scrollContainer = document.getElementById("timelineScrollContainer");
   if (!scrollContainer) return;
 
-  const colWidth = zoomMode === "days" ? 140 : 100;
-  const todayStr = formatLocalDate(new Date());
+  isProgrammaticScrolling = true;
 
-  let todayIdx = -1;
-  for (let i = 0; i < timelineDays.length; i++) {
-    if (formatLocalDate(timelineDays[i]) === todayStr) {
-      todayIdx = i;
-      break;
+  // 1. First attempt: locate live rendered today element in DOM
+  const todayHeader = document.querySelector(".timeline-day-header.is-today");
+  const todayCell = document.querySelector(".grid-col-cell.is-today-col");
+  const todayEl = todayHeader || todayCell;
+  let targetScroll = -1;
+
+  if (todayEl && todayEl.offsetLeft > 0) {
+    targetScroll = Math.max(0, todayEl.offsetLeft + (todayEl.offsetWidth / 2) - (scrollContainer.clientWidth / 2));
+  } else {
+    // 2. Math calculation fallback using dynamic column width
+    const colWidth = getTimelineColWidth();
+    const todayStr = formatLocalDate(new Date());
+
+    let todayIdx = -1;
+    for (let i = 0; i < timelineDays.length; i++) {
+      if (formatLocalDate(timelineDays[i]) === todayStr) {
+        todayIdx = i;
+        break;
+      }
+    }
+
+    if (todayIdx !== -1) {
+      const todayPx = todayIdx * colWidth + (colWidth / 2);
+      targetScroll = Math.max(0, todayPx - (scrollContainer.clientWidth / 2));
     }
   }
 
-  if (todayIdx !== -1) {
-    const todayPx = todayIdx * colWidth + (colWidth / 2);
-    const targetScroll = Math.max(0, todayPx - (scrollContainer.clientWidth / 2));
+  if (targetScroll >= 0) {
     if (smooth) {
       scrollContainer.scrollTo({ left: targetScroll, behavior: "smooth" });
     } else {
       scrollContainer.scrollLeft = targetScroll;
     }
-    setTimeout(updateDateRangeLabelFromScroll, 50);
+    setTimeout(() => {
+      updateDateRangeLabelFromScroll();
+      updateTodayMarkerPosition();
+      isProgrammaticScrolling = false;
+      isInitialTimelineLoad = false;
+    }, smooth ? 450 : 50);
   } else {
+    isProgrammaticScrolling = false;
     viewStartDate = getCenteredDate(new Date(), -PAST_BUFFER_DAYS);
     totalVisibleDays = PAST_BUFFER_DAYS + FUTURE_BUFFER_DAYS;
     renderTimeline(true);
@@ -832,7 +870,7 @@ function updateDateRangeLabelFromScroll() {
   const dateRangeLabel = document.getElementById("currentDateRange");
   if (!scrollContainer || !dateRangeLabel || !timelineDays || timelineDays.length === 0) return;
 
-  const colWidth = zoomMode === "days" ? 140 : 100;
+  const colWidth = getTimelineColWidth();
   const centerPx = scrollContainer.scrollLeft + (scrollContainer.clientWidth / 2);
   const colIndex = Math.max(0, Math.min(timelineDays.length - 1, Math.floor(centerPx / colWidth)));
   const centerDate = timelineDays[colIndex];
@@ -844,9 +882,9 @@ function updateDateRangeLabelFromScroll() {
 // Seamlessly expands the timeline date buffer when the user scrolls near either end
 function checkAndExpandDateBuffer() {
   const scrollContainer = document.getElementById("timelineScrollContainer");
-  if (!scrollContainer || isBufferExpanding) return;
+  if (!scrollContainer || isBufferExpanding || isInitialTimelineLoad || isProgrammaticScrolling) return;
 
-  const colWidth = zoomMode === "days" ? 140 : 100;
+  const colWidth = getTimelineColWidth();
 
   // Near left edge (past dates): prepend 21 days
   if (scrollContainer.scrollLeft < 350) {
@@ -909,7 +947,7 @@ function updateTodayMarkerPosition() {
     return;
   }
 
-  const colWidth = zoomMode === "days" ? 140 : 100;
+  const colWidth = getTimelineColWidth();
   const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
   const workStart = 9 * 60;  // 9:00 AM = 540 minutes
   const workEnd = 18 * 60;   // 6:00 PM = 1080 minutes
@@ -928,7 +966,8 @@ function updateTodayMarkerPosition() {
     offsetInCol = Math.max(3, Math.min(colWidth - 3, fraction * colWidth));
   }
 
-  const xPos = todayColIndex * colWidth + offsetInCol;
+  const todayEl = document.querySelector(".timeline-day-header.is-today") || document.querySelector(".grid-col-cell.is-today-col");
+  const xPos = (todayEl && todayEl.offsetLeft > 0) ? todayEl.offsetLeft + offsetInCol : (todayColIndex * colWidth + offsetInCol);
   todayMarker.style.display = "block";
   todayMarker.style.left = `${xPos}px`;
 
@@ -945,7 +984,7 @@ function updateTodayMarkerPosition() {
 
 // Create a single Task Pill with Drag & Resize controllers
 function createTaskPill(task, days, rowHeight = 76, trackCount = 1) {
-  const colWidth = zoomMode === "days" ? 140 : 100;
+  const colWidth = getTimelineColWidth();
   const startDate = new Date(task.startDate + "T00:00:00");
   const dueDate = new Date(task.dueDate + "T00:00:00");
 
@@ -1011,7 +1050,7 @@ function setupTaskDragAndResize(pill, task) {
   let startX = 0;
   let initialLeft = 0;
   let initialWidth = 0;
-  let colWidth = zoomMode === "days" ? 140 : 100;
+  let colWidth = getTimelineColWidth();
 
   const origStartDate = new Date(task.startDate + "T00:00:00");
   const origDueDate = new Date(task.dueDate + "T00:00:00");
@@ -1024,7 +1063,7 @@ function setupTaskDragAndResize(pill, task) {
   function onMouseDown(e) {
     if (e.button !== 0) return; // Left mouse button only
 
-    colWidth = zoomMode === "days" ? 140 : 100;
+    colWidth = getTimelineColWidth();
     startX = e.clientX;
     initialLeft = parseFloat(pill.style.left) || 0;
     initialWidth = parseFloat(pill.style.width) || 80;
@@ -1787,7 +1826,7 @@ function bindUIEvents() {
 
   document.getElementById("prevBtn").addEventListener("click", () => {
     const scrollContainer = document.getElementById("timelineScrollContainer");
-    const colWidth = zoomMode === "days" ? 140 : 100;
+    const colWidth = getTimelineColWidth();
     if (scrollContainer) {
       scrollContainer.scrollBy({ left: -(colWidth * 7), behavior: "smooth" });
     }
@@ -1795,7 +1834,7 @@ function bindUIEvents() {
 
   document.getElementById("nextBtn").addEventListener("click", () => {
     const scrollContainer = document.getElementById("timelineScrollContainer");
-    const colWidth = zoomMode === "days" ? 140 : 100;
+    const colWidth = getTimelineColWidth();
     if (scrollContainer) {
       scrollContainer.scrollBy({ left: colWidth * 7, behavior: "smooth" });
     }
