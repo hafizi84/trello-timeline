@@ -116,11 +116,47 @@ body {
   color: #1E293B;
 }
 
-.board-selector-wrap {
-  display: flex;
+.brand-divider {
+  width: 1px;
+  height: 22px;
+  background-color: #E2E8F0;
+  margin: 0 4px;
+}
+
+.refresh-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 8px;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.refresh-btn:hover {
+  background-color: #F3F4F6;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.refresh-btn:active {
+  background-color: #E5E7EB;
+}
+
+.refresh-btn.spinning svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .board-selector-wrap label {
@@ -848,8 +884,8 @@ body {
 .modal-content {
   background-color: #FFFFFF;
   border-radius: 14px;
-  width: 92%;
-  max-width: 680px;
+  width: 94%;
+  max-width: 720px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   border: 1px solid #E5E7EB;
@@ -1004,6 +1040,21 @@ body {
   background-color: #FEF3C7;
   border-color: #FCD34D;
   color: #B45309;
+}
+
+.archive-btn {
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  padding: 0 14px;
+  gap: 6px;
+}
+
+.archive-btn:hover {
+  background-color: #FEE2E2;
+  border-color: #FCA5A5;
+  color: #B91C1C;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.15);
 }
 
 .modal-actions-right .secondary-btn {

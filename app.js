@@ -14,7 +14,7 @@ const DEFAULT_BOARD_ID = "628595a5a6a64558821ec0dd";
 
 // Global State
 const urlParams = new URLSearchParams(window.location.search);
-let currentBoardId = urlParams.get("boardId") || DEFAULT_BOARD_ID;
+let currentBoardId = urlParams.get("boardId") || urlParams.get("board") || DEFAULT_BOARD_ID;
 let currentViewMode = "label"; // Default to 'label' as requested
 let zoomMode = "days"; // 'days' | 'weeks'
 let totalVisibleDays = 9;
@@ -106,7 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // Trello API Integration
 // ==========================================================================
 async function loadTrelloBoards() {
+  const syncStatus = document.getElementById("syncStatus");
+  if (syncStatus) syncStatus.style.display = "flex";
+
   const boardSelect = document.getElementById("boardSelect");
+  if (!boardSelect) return;
+
   try {
     const url = `https://api.trello.com/1/members/me/boards?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&filter=open`;
     const res = await fetch(url);
@@ -121,8 +126,6 @@ async function loadTrelloBoards() {
       if (b.id === currentBoardId) opt.selected = true;
       boardSelect.appendChild(opt);
     });
-
-    document.getElementById("syncStatus").style.display = "flex";
   } catch (err) {
     console.warn("Could not load Trello boards list:", err);
   }
@@ -675,9 +678,13 @@ function openEditModal(task) {
     }
   }
 
-  // If this card is in unscheduled drawer and being scheduled, hide unschedule button
+  // If this card is in unscheduled drawer and being scheduled, hide unschedule & archive buttons
   if (unscheduleBtn) {
     unscheduleBtn.style.display = task.isNewScheduled ? "none" : "inline-flex";
+  }
+  const archiveBtn = document.getElementById("archiveTaskBtn");
+  if (archiveBtn) {
+    archiveBtn.style.display = task.isNewScheduled ? "none" : "inline-flex";
   }
 
   assigneeSelect.innerHTML = "";
@@ -701,10 +708,13 @@ function closeEditModal() {
 // UI Event Handlers
 // ==========================================================================
 function bindUIEvents() {
-  document.getElementById("boardSelect").addEventListener("change", (e) => {
-    currentBoardId = e.target.value;
-    fetchBoardData(currentBoardId);
-  });
+  const boardSelect = document.getElementById("boardSelect");
+  if (boardSelect) {
+    boardSelect.addEventListener("change", (e) => {
+      currentBoardId = e.target.value;
+      fetchBoardData(currentBoardId);
+    });
+  }
 
   const pills = document.querySelectorAll("#groupByPills .pill-btn");
   pills.forEach(btn => {
@@ -819,6 +829,8 @@ function bindUIEvents() {
   // Action Buttons
   document.getElementById("completeTaskBtn")?.addEventListener("click", handleCompleteTask);
   document.getElementById("unscheduleTaskBtn")?.addEventListener("click", handleUnscheduleTask);
+  document.getElementById("archiveTaskBtn")?.addEventListener("click", handleArchiveTask);
+  document.getElementById("refreshBtn")?.addEventListener("click", handleRefreshTimeline);
   document.getElementById("clearStartDateBtn")?.addEventListener("click", () => {
     document.getElementById("taskStartDate").value = "";
   });
@@ -1058,4 +1070,62 @@ async function handleUnscheduleTask() {
   renderUnscheduledDrawer();
   closeEditModal();
   showNavToast(`🗓️ "${taskObj ? taskObj.name : 'Task'}" unscheduled & moved to Unscheduled drawer`);
+}
+
+// ==========================================================================
+// Archive Task (Trello API closed=true)
+// ==========================================================================
+async function handleArchiveTask() {
+  const id = document.getElementById("editCardId").value;
+  if (!id) return;
+
+  const existingIndex = activeTasks.findIndex(t => t.id === id);
+  let taskObj = null;
+  if (existingIndex !== -1) {
+    taskObj = activeTasks.splice(existingIndex, 1)[0];
+  } else {
+    const uIndex = unscheduledTasks.findIndex(u => u.id === id);
+    if (uIndex !== -1) {
+      taskObj = unscheduledTasks.splice(uIndex, 1)[0];
+    }
+  }
+
+  // Trello API: Archive card (PUT /1/cards/{id}?closed=true)
+  if (!id.startsWith("custom_")) {
+    try {
+      const putUrl = `https://api.trello.com/1/cards/${id}?key=${TRELLO_CONFIG.key}&token=${TRELLO_CONFIG.token}&closed=true`;
+      await fetch(putUrl, { method: "PUT" });
+    } catch (err) {
+      console.error("Failed to archive card on Trello:", err);
+    }
+  }
+
+  computeTaskTracks();
+  renderTimeline();
+  renderUnscheduledDrawer();
+  closeEditModal();
+  showNavToast(`📦 "${taskObj ? taskObj.name : 'Task'}" archived on Trello and removed from timeline`);
+}
+
+// ==========================================================================
+// Refresh Timeline Page (Cache-Busting Reload)
+// ==========================================================================
+function handleRefreshTimeline() {
+  const refreshBtn = document.getElementById("refreshBtn");
+  if (refreshBtn) {
+    refreshBtn.classList.add("spinning");
+    const span = refreshBtn.querySelector("span");
+    if (span) span.textContent = "Refreshing...";
+  }
+  showNavToast("🔄 Reloading timeline with latest updates...");
+
+  setTimeout(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("_v", Date.now().toString());
+      window.location.replace(url.toString());
+    } catch (e) {
+      window.location.reload();
+    }
+  }, 350);
 }
