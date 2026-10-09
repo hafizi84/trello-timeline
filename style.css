@@ -558,6 +558,20 @@ body {
   font-weight: 700;
 }
 
+/* Weekend Day Header Box (Saturday & Sunday) */
+.timeline-day-header.is-weekend {
+  background-color: #EDEFF2;
+  color: #64748B;
+}
+
+.timeline-day-header.is-weekend .day-badge-pill {
+  color: #64748B;
+}
+
+.timeline-day-header.is-weekend.is-today {
+  color: #0284C7;
+}
+
 .day-badge-pill {
   width: 24px;
   height: 24px;
@@ -569,7 +583,8 @@ body {
   font-weight: 700;
 }
 
-.timeline-day-header.is-today .day-badge-pill {
+.timeline-day-header.is-today .day-badge-pill,
+.timeline-day-header.is-weekend.is-today .day-badge-pill {
   background-color: #0284C7;
   color: #FFFFFF;
   box-shadow: 0 1px 3px rgba(2, 132, 199, 0.4);
@@ -654,6 +669,19 @@ body {
 
 .grid-col-cell.is-today-col {
   background-color: #F0F9FF20;
+}
+
+/* Weekend Grid Column (Saturday & Sunday) */
+.grid-col-cell.is-weekend-col {
+  background-color: #F4F5F7;
+}
+
+.grid-col-cell.is-weekend-col:hover {
+  background-color: #EBEDF0;
+}
+
+.grid-col-cell.is-weekend-col.is-today-col {
+  background-color: #E0F2FE80;
 }
 
 /* ==========================================================================

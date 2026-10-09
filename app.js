@@ -468,11 +468,16 @@ function renderTimeline() {
     const dayName = day.toLocaleDateString("en-US", { weekday: "short" });
     const dayNum = day.getDate();
     const isToday = dayStr === todayStr;
+    const dayOfWeek = day.getDay(); // 0 is Sunday, 6 is Saturday
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
     if (isToday) todayColIndex = index;
 
     const dayCol = document.createElement("div");
-    dayCol.className = `timeline-day-header ${isToday ? "is-today" : ""}`;
+    dayCol.className = `timeline-day-header ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""}`;
+    if (isWeekend) {
+      dayCol.title = `${dayName} ${dayNum} (Weekend)`;
+    }
     dayCol.innerHTML = `<span>${dayName}</span><span class="day-badge-pill">${dayNum}</span>`;
     headerRow.appendChild(dayCol);
   });
@@ -536,8 +541,13 @@ function renderTimeline() {
     days.forEach(day => {
       const dayStr = formatLocalDate(day);
       const isToday = dayStr === todayStr;
+      const dayOfWeek = day.getDay(); // 0 is Sunday, 6 is Saturday
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       const cell = document.createElement("div");
-      cell.className = `grid-col-cell ${isToday ? "is-today-col" : ""}`;
+      cell.className = `grid-col-cell ${isToday ? "is-today-col" : ""} ${isWeekend ? "is-weekend-col" : ""}`;
+      if (isWeekend) {
+        cell.title = "Weekend";
+      }
       gridRow.appendChild(cell);
     });
 
