@@ -135,6 +135,40 @@ body {
   margin: 0 4px;
 }
 
+.toggle-completed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #4B5563;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.toggle-completed-btn:hover {
+  background-color: #F3F4F6;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.toggle-completed-btn.active {
+  background-color: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+}
+
+.toggle-completed-btn.active svg {
+  stroke: #059669;
+}
+
 .refresh-btn {
   display: inline-flex;
   align-items: center;
@@ -1899,10 +1933,12 @@ body.is-dragging-task {
   }
   .sidebar-toggle-btn .btn-text,
   .refresh-btn span,
+  .toggle-completed-btn .btn-text,
   .sync-status .status-text {
     display: none;
   }
   .refresh-btn,
+  .toggle-completed-btn,
   .sidebar-toggle-btn {
     padding: 0 9px;
     height: 32px;
@@ -2060,11 +2096,13 @@ body.is-dragging-task {
     font-size: 0.72rem;
   }
   .refresh-btn span,
+  .toggle-completed-btn .btn-text,
   .sidebar-toggle-btn .btn-text,
   .sync-status .status-text {
     display: none;
   }
   .refresh-btn,
+  .toggle-completed-btn,
   .sidebar-toggle-btn {
     padding: 0 8px;
     height: 30px;

@@ -37,6 +37,15 @@ let rowNavIndexes = {}; // Tracks focused task index per row for double-click cy
 let boardHolidays = []; // Holds public holidays & leave days { id, title, startDate, dueDate }
 let currentModalTask = null; // Tracks currently active task in modal
 let currentModalChecklists = []; // Holds active checklist objects for modal
+let showCompleted = localStorage.getItem("trello_timeline_show_completed") !== "false"; // Default true (visible)
+
+// Helper: Returns active tasks filtered by the showCompleted preference
+function getVisibleActiveTasks() {
+  if (showCompleted) {
+    return activeTasks;
+  }
+  return activeTasks.filter(t => !t.isCompleted && !isTaskChecklistCompleted(t));
+}
 
 // Compute checklist completed/total counts and prefix text for timeline bar
 function getTaskChecklistCount(task) {
@@ -62,6 +71,7 @@ function getTaskChecklistCount(task) {
 // Check if a task's checklist is all completed (100%), or if card is marked complete
 function isTaskChecklistCompleted(task) {
   if (!task) return false;
+  if (task.isCompleted) return true;
 
   // 1. If task has checklists with items, verify 100% of items are complete
   if (task.checklists && Array.isArray(task.checklists) && task.checklists.length > 0) {
@@ -437,10 +447,8 @@ async function fetchBoardData(boardId) {
         return; // Exclude from regular timeline task bars!
       }
 
-      // Exclude cards marked completed or inside completed archive lists from the active timeline view
-      if (card.dueComplete === true || (listName && listName.toLowerCase().includes("completed") && !listName.toLowerCase().includes("this week"))) {
-        return;
-      }
+      // Identify if card is completed (either dueComplete=true or inside completed archive lists)
+      const isCardCompleted = Boolean(card.dueComplete) || Boolean(listName && listName.toLowerCase().includes("completed"));
 
       const start = card.start ? card.start.split("T")[0] : null;
       const due = card.due ? card.due.split("T")[0] : null;
@@ -464,6 +472,7 @@ async function fetchBoardData(boardId) {
           dDate,
           listName,
           checklists: cardChecklists,
+          isCompleted: isCardCompleted,
           idx
         });
       } else {
@@ -474,7 +483,8 @@ async function fetchBoardData(boardId) {
           list: listName || "To Do",
           listId: card.idList,
           labels: card.labels || [],
-          checklists: cardChecklists
+          checklists: cardChecklists,
+          isCompleted: isCardCompleted
         });
       }
     });
@@ -499,7 +509,7 @@ async function fetchBoardData(boardId) {
       const labelMap = new Map();
 
       // ONLY labels that have at least one scheduled task under them are added!
-      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx, isCompleted }) => {
         let labelId, labelName, labelColor;
 
         if (card.labels && card.labels.length > 0) {
@@ -542,7 +552,7 @@ async function fetchBoardData(boardId) {
           labelId: labelId,
           labels: card.labels || [],
           checklists: card.checklists || [],
-          isCompleted: Boolean(card.dueComplete)
+          isCompleted: Boolean(isCompleted || card.dueComplete)
         });
       });
 
@@ -562,7 +572,7 @@ async function fetchBoardData(boardId) {
       sidebarTitle.textContent = "Lists & Status";
       const listMap = new Map();
 
-      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx, isCompleted }) => {
         const lId = card.idList;
         const listObj = lists.find(l => l.id === lId);
         const lName = listObj ? listObj.name : "List";
@@ -590,7 +600,7 @@ async function fetchBoardData(boardId) {
           listName: listName,
           labels: card.labels || [],
           checklists: card.checklists || [],
-          isCompleted: Boolean(card.dueComplete)
+          isCompleted: Boolean(isCompleted || card.dueComplete)
         });
       });
 
@@ -606,7 +616,7 @@ async function fetchBoardData(boardId) {
       sidebarTitle.textContent = "People & Assignees";
       const memberMap = new Map();
 
-      scheduledCards.forEach(({ card, sDate, dDate, listName, idx }) => {
+      scheduledCards.forEach(({ card, sDate, dDate, listName, idx, isCompleted }) => {
         const memId = (card.idMembers && card.idMembers[0]) ? card.idMembers[0] : "unassigned";
         const memObj = members.find(m => m.id === memId);
         const memName = memObj ? (memObj.fullName || memObj.username) : "Unassigned";
@@ -635,7 +645,7 @@ async function fetchBoardData(boardId) {
           listName: listName,
           labels: card.labels || [],
           checklists: card.checklists || [],
-          isCompleted: Boolean(card.dueComplete)
+          isCompleted: Boolean(isCompleted || card.dueComplete)
         });
       });
 
@@ -733,7 +743,16 @@ function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
   const MIN_ROW_HEIGHT = 76;
 
   // 3. Render Left Sidebar Rows
+  const visibleTasks = getVisibleActiveTasks();
   activeRows.forEach(row => {
+    const rowTasks = visibleTasks.filter(t => t.rowId === row.id);
+    const rowTasksCount = rowTasks.length;
+
+    // When completed tasks are hidden, skip empty rows if there are other rows
+    if (!showCompleted && rowTasksCount === 0 && activeRows.length > 1 && row.id !== "empty_info") {
+      return;
+    }
+
     const trackCount = Math.max(1, row.trackCount || 1);
     const contentHeight = (ROW_PADDING_Y * 2) + (trackCount * PILL_HEIGHT) + ((trackCount - 1) * TRACK_GAP);
     const rowHeight = Math.max(MIN_ROW_HEIGHT, contentHeight);
@@ -744,7 +763,6 @@ function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
     rowEl.style.height = `${rowHeight}px`;
     rowEl.style.minHeight = `${rowHeight}px`;
 
-    const rowTasksCount = activeTasks.filter(t => t.rowId === row.id).length;
     rowEl.title = `${row.name} (${rowTasksCount} scheduled task${rowTasksCount === 1 ? '' : 's'})\n💡 Double-click to cycle through tasks (latest to oldest)`;
 
     if (row.isMilestone) {
@@ -818,7 +836,6 @@ function renderTimeline(shouldCenterToday = false, overrideScrollLeft = null) {
     });
 
     // Append Task Pills for this row
-    const rowTasks = activeTasks.filter(t => t.rowId === row.id);
     rowTasks.forEach(task => {
       const pill = createTaskPill(task, days, rowHeight, trackCount);
       if (pill) gridRow.appendChild(pill);
@@ -1264,7 +1281,8 @@ function getOrCreateDragTooltip() {
 // Compute tracks for overlapping tasks within the same row (Greedy Interval Scheduling)
 function computeTaskTracks() {
   const rows = {};
-  activeTasks.forEach(t => {
+  const visibleTasks = getVisibleActiveTasks();
+  visibleTasks.forEach(t => {
     if (!rows[t.rowId]) rows[t.rowId] = [];
     rows[t.rowId].push(t);
   });
@@ -2263,6 +2281,20 @@ function bindUIEvents() {
   document.getElementById("archiveTaskBtn")?.addEventListener("click", handleArchiveTask);
   document.getElementById("deleteHolidayBtn")?.addEventListener("click", handleDeleteHoliday);
   document.getElementById("refreshBtn")?.addEventListener("click", handleRefreshTimeline);
+
+  // Toggle Completed Tasks visibility
+  const toggleCompletedBtn = document.getElementById("toggleCompletedBtn");
+  if (toggleCompletedBtn) {
+    updateCompletedBtnUI();
+    toggleCompletedBtn.addEventListener("click", () => {
+      showCompleted = !showCompleted;
+      localStorage.setItem("trello_timeline_show_completed", showCompleted ? "true" : "false");
+      updateCompletedBtnUI();
+      computeTaskTracks();
+      renderTimeline();
+      showNavToast(showCompleted ? "👁️ Showing completed tasks on timeline" : "🙈 Hidden completed tasks from timeline");
+    });
+  }
   document.getElementById("toggleSidebarBtn")?.addEventListener("click", () => {
     const sb = document.getElementById("timelineSidebar");
     const btn = document.getElementById("toggleSidebarBtn");
@@ -2432,6 +2464,19 @@ function bindUIEvents() {
   });
 }
 
+// Update the Completed Tasks toggle button styling & tooltip
+function updateCompletedBtnUI() {
+  const btn = document.getElementById("toggleCompletedBtn");
+  if (!btn) return;
+  if (showCompleted) {
+    btn.classList.add("active");
+    btn.title = "Completed tasks: VISIBLE (Click to hide)";
+  } else {
+    btn.classList.remove("active");
+    btn.title = "Completed tasks: HIDDEN (Click to show)";
+  }
+}
+
 // ==========================================================================
 // Quick New Task On Date Creator
 // Triggered by double-clicking on any date box (header or grid cell)
@@ -2498,7 +2543,7 @@ function handleQuickNewTaskOnDate(targetDateStr, targetRowId) {
 // and subsequent double-clicks move to the next previous scheduled task.
 // ==========================================================================
 function jumpToRowTask(rowId) {
-  const tasks = activeTasks.filter(t => t.rowId === rowId);
+  const tasks = getVisibleActiveTasks().filter(t => t.rowId === rowId);
   if (!tasks || tasks.length === 0) {
     showNavToast("No scheduled tasks found under this label");
     return;
@@ -2633,15 +2678,25 @@ async function handleCompleteTask() {
   const targetListId = targetList ? targetList.id : "";
   const targetListName = targetList ? targetList.name : "Task Completed (2026-2027)";
 
-  // Remove from activeTasks so it immediately disappears from the timeline
+  // Keep task in activeTasks marked completed so it stays visible on timeline in Mint Green
   const taskIndex = activeTasks.findIndex(t => t.id === id);
   let task = null;
   if (taskIndex !== -1) {
-    task = activeTasks.splice(taskIndex, 1)[0];
+    task = activeTasks[taskIndex];
+    task.isCompleted = true;
+    if (targetListId) {
+      task.listId = targetListId;
+      task.listName = targetListName;
+    }
   } else {
     const uIndex = unscheduledTasks.findIndex(u => u.id === id);
     if (uIndex !== -1) {
-      task = unscheduledTasks.splice(uIndex, 1)[0];
+      task = unscheduledTasks[uIndex];
+      task.isCompleted = true;
+      if (targetListId) {
+        task.listId = targetListId;
+        task.listName = targetListName;
+      }
     }
   }
 
@@ -2659,7 +2714,7 @@ async function handleCompleteTask() {
   renderTimeline();
   renderUnscheduledDrawer();
   closeEditModal();
-  showNavToast(`✅ Marked "${task ? task.name : 'Task'}" completed & moved to "${targetListName}" (removed from timeline)`);
+  showNavToast(`✅ Marked "${task ? task.name : 'Task'}" completed & moved to "${targetListName}"`);
 }
 
 async function handleUnscheduleTask() {
